@@ -52,7 +52,7 @@ function SceneLabel({ id, ownerId, anchor, priority, emphasis, align = "bottom",
       onMouseLeave={() => hover(null)}
       onFocus={() => hover(ownerId)}
       onBlur={() => hover(null)}
-      className={cls("scene-focus group absolute top-0 left-0 flex cursor-pointer flex-col items-center text-left transition-opacity duration-200 will-change-transform select-none", className)}
+      className={cls("scene-focus group absolute top-0 left-0 flex cursor-pointer flex-col items-center text-left transition-[opacity,visibility] duration-300 ease-out will-change-transform select-none", className)}
       style={{ visibility: "hidden", opacity: 0 }}
     >
       {children}
@@ -72,6 +72,27 @@ function Stem({ tone, length = 18 }: { tone: string; length?: number }) {
       <span className="w-px" style={{ height: length, background: `linear-gradient(${tone}, transparent)` }} />
       <span className="-mt-0.5 size-1.5 rounded-full" style={{ background: tone, boxShadow: `0 0 8px ${tone}` }} />
     </span>
+  );
+}
+
+/** Scrolling over a label zooms the scene, as it would anywhere else on the view. */
+function forwardWheel(e: React.WheelEvent) {
+  const canvas = document.querySelector<HTMLCanvasElement>("#viewer canvas");
+  canvas?.dispatchEvent(
+    new WheelEvent("wheel", {
+      deltaX: e.deltaX,
+      deltaY: e.deltaY,
+      deltaZ: e.deltaZ,
+      deltaMode: e.deltaMode,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      ctrlKey: e.ctrlKey,
+      shiftKey: e.shiftKey,
+      altKey: e.altKey,
+      metaKey: e.metaKey,
+      bubbles: true,
+      cancelable: true,
+    }),
   );
 }
 
@@ -239,7 +260,7 @@ function SceneLabelsImpl() {
   }
 
   return (
-    <div aria-label="3D facility labels" role="group" className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div aria-label="3D facility labels" role="group" className="pointer-events-none absolute inset-0 overflow-hidden" onWheel={forwardWheel}>
       <div className="pointer-events-auto">{labels}</div>
     </div>
   );

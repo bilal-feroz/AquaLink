@@ -30,7 +30,7 @@ export function LeftRail() {
           aria-current={active ? "page" : undefined}
           className={cls(
             "relative flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2.5 text-[11.5px] font-medium transition-colors",
-            active ? "bg-brand-50 text-brand" : "text-muted hover:bg-slate-100 hover:text-ink",
+            active ? "glass-tile text-brand" : "text-muted hover:bg-white/60 hover:text-ink",
           )}
         >
           {active && <span aria-hidden className="absolute top-2 bottom-2 -left-2 w-[3px] rounded-r-full bg-brand" />}
@@ -48,7 +48,7 @@ export function LeftRail() {
   };
 
   return (
-    <nav aria-label="Main" className="flex w-[78px] shrink-0 flex-col justify-between border-r border-line bg-white px-2 py-3">
+    <nav aria-label="Main" className="glass-bar flex w-[78px] shrink-0 flex-col justify-between border-r px-2 py-3">
       <ul className="flex flex-col gap-1">{ITEMS.map(item)}</ul>
       <ul>{item({ id: "settings", label: "Settings", icon: Settings })}</ul>
     </nav>

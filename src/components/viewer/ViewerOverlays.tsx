@@ -35,15 +35,15 @@ export function ModeSwitcher() {
             onClick={() => setMode(m.id)}
             className={cls(
               "relative flex items-center gap-2.5 rounded-xl py-1.5 pr-3.5 pl-2 text-left whitespace-nowrap transition-all",
-              active ? (alert ? "bg-white text-crit shadow-md ring-2 ring-crit/60" : "bg-white text-brand shadow-md") : "text-white/85 hover:bg-white/10 hover:text-white",
+              active ? (alert ? "glass-active-crit" : "glass-active") : "text-white/85 hover:bg-white/10 hover:text-white",
             )}
           >
-            <span className={cls("grid size-7 place-items-center rounded-lg", active ? (alert ? "bg-crit-bg" : "bg-brand-50") : "bg-white/10")}>
+            <span className={cls("grid size-7 place-items-center rounded-lg", active ? "bg-white/35" : "bg-white/10")}>
               <Icon aria-hidden className="size-4" />
             </span>
             <span>
               <span className="block text-[13px] leading-tight font-semibold">{m.label}</span>
-              <span className={cls("block text-[10.5px] leading-tight", active ? "text-muted" : "text-white/55")}>{m.hint}</span>
+              <span className={cls("block text-[10.5px] leading-tight", active ? (alert ? "text-white/80" : "text-sky-950/70") : "text-white/55")}>{m.hint}</span>
             </span>
             {alert && !active && <span aria-hidden className="pulse-crit absolute top-1.5 right-1.5 size-2 rounded-full bg-red-500" />}
           </button>
@@ -88,7 +88,7 @@ export function ViewerButtons() {
       <button
         aria-pressed={textView}
         onClick={() => setTextView(!textView)}
-        className={cls("scene-chip flex h-10 items-center gap-2 rounded-xl px-3 text-[13px] font-medium shadow-lg", textView ? "bg-white! text-ink" : "text-white hover:bg-white/10")}
+        className={cls("flex h-10 items-center gap-2 rounded-xl px-3 text-[13px] font-medium", textView ? "glass-active" : "scene-chip text-white hover:bg-white/10")}
         title="Accessible text view of the facility (T)"
       >
         <Table2 aria-hidden className="size-4" />
@@ -101,7 +101,7 @@ export function ViewerButtons() {
           if (!document.fullscreenElement) void el?.requestFullscreen?.();
           else void document.exitFullscreen();
         }}
-        className="scene-chip grid size-10 place-items-center rounded-xl text-white shadow-lg hover:bg-white/10"
+        className="scene-chip grid size-10 place-items-center rounded-xl text-white hover:bg-white/10"
       >
         {full ? <Minimize2 aria-hidden className="size-4" /> : <Maximize2 aria-hidden className="size-4" />}
       </button>
@@ -133,11 +133,11 @@ export function LayerToggles({ compact }: { compact?: boolean }) {
       <ul className={cls("grid gap-0.5", compact ? "grid-cols-1" : "grid-cols-2 gap-x-3")}>
         {LAYER_LABELS.filter((l) => !(mode !== "public" && l.key === "visitors")).map((l) => (
           <li key={l.key}>
-            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-[13px] hover:bg-slate-50">
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-[13px] hover:bg-white/70">
               <span className="text-ink-2">{l.label}</span>
               <span className="relative inline-flex">
                 <input type="checkbox" role="switch" className="peer sr-only" checked={layers[l.key]} onChange={() => toggle(l.key)} />
-                <span className="h-5 w-9 rounded-full bg-slate-300 transition-colors peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2" />
+                <span className="h-5 w-9 rounded-full bg-slate-300/80 shadow-inner transition-colors peer-checked:bg-gradient-to-r peer-checked:from-sky-400 peer-checked:to-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2" />
                 <span className="absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
               </span>
             </label>
@@ -180,7 +180,7 @@ export function ViewerControls() {
           <Layers aria-hidden className="size-5" />
         </button>
         {pop.open && (
-          <div className="fade-in absolute bottom-14 left-0 z-30 w-64 rounded-xl border border-line bg-white p-2 shadow-2xl">
+          <div className="glass fade-in absolute bottom-14 left-0 z-30 w-64 rounded-xl bg-white/85 p-2 shadow-2xl">
             <div className="px-2 pt-1 pb-1.5 text-sm font-semibold">Visibility layers</div>
             <LayerToggles compact />
           </div>
@@ -238,7 +238,7 @@ export function FloorSelector() {
               aria-checked={on}
               title={f.name}
               onClick={() => setLevel(on ? null : f.id)}
-              className={cls("h-7 min-w-10 rounded-md px-1.5 text-[12px] font-semibold", on ? "bg-white text-brand ring-2 ring-sky-300" : "text-white/80 hover:bg-white/10")}
+              className={cls("h-7 min-w-10 rounded-md px-1.5 text-[12px] font-semibold transition-colors", on ? "glass-active" : "text-white/80 hover:bg-white/10")}
             >
               {f.id === "PL" ? "Plant" : f.id}
             </button>

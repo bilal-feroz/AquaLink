@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, Crosshair, Fish, Waves } from "lucide-react";
-import { TANKS } from "@/lib/data/facility";
+import { TANKS, habitatImage } from "@/lib/data/facility";
 import { cls } from "@/lib/format";
 import { tankReading } from "@/lib/simulation/readings";
 import { TONE_HEX, tankStatusInfo } from "@/lib/status";
@@ -24,7 +24,6 @@ const SPECIES_DOT: Record<SpeciesKind, string> = {
  */
 export function HabitatsPanel() {
   const sim = useAppStore((s) => s.sim);
-  const captures = useAppStore((s) => s.captures);
   const follow = useAppStore((s) => s.follow);
   const a = useAppStore.getState();
   const totals = TANKS.flatMap((t) => t.habitat.species).reduce((sum, s) => sum + s.count, 0);
@@ -40,7 +39,7 @@ export function HabitatsPanel() {
   };
 
   return (
-    <section aria-labelledby="hab-title" className="rounded-2xl border border-line bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+    <section aria-labelledby="hab-title" className="glass rounded-2xl">
       <header className="flex items-center justify-between gap-2 px-4 pt-3.5 pb-2">
         <h3 id="hab-title" className="flex items-center gap-2 text-[13.5px] font-semibold text-ink">
           <Waves aria-hidden className="size-4 text-cyan" /> Habitats & marine life
@@ -54,15 +53,11 @@ export function HabitatsPanel() {
           const r = tankReading(sim, t.id);
           const tone = info.tone === "ok" ? "#16a34a" : TONE_HEX[info.tone];
           return (
-            <li key={t.id} className="overflow-hidden rounded-xl border border-line">
-              <button onClick={() => goTank(t.id)} className="group flex w-full items-center gap-3 p-2 text-left hover:bg-slate-50" aria-label={`Fly to ${t.name}, ${t.habitat.name}`}>
+            <li key={t.id} className="glass-tile overflow-hidden rounded-xl">
+              <button onClick={() => goTank(t.id)} className="group flex w-full items-center gap-3 p-2 text-left transition-colors hover:bg-white/70" aria-label={`Fly to ${t.name}, ${t.habitat.name}`}>
                 <span className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-200">
-                  {captures[t.id] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={captures[t.id]} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" />
-                  ) : (
-                    <span className="block h-full w-full" style={{ background: `linear-gradient(180deg, ${t.habitat.waterTint.shallow}, ${t.habitat.waterTint.deep})` }} />
-                  )}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={habitatImage(t.id)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" style={{ background: `linear-gradient(180deg, ${t.habitat.waterTint.shallow}, ${t.habitat.waterTint.deep})` }} />
                   <span className="absolute top-1 left-1 rounded bg-black/55 px-1 text-[9.5px] font-bold text-white">{t.code}</span>
                 </span>
                 <span className="min-w-0 flex-1">
@@ -82,7 +77,7 @@ export function HabitatsPanel() {
                 </span>
                 <Crosshair aria-hidden className="size-4 shrink-0 text-subtle transition-colors group-hover:text-brand" />
               </button>
-              <ul className="flex flex-wrap gap-1.5 border-t border-line bg-slate-50/60 px-2 py-2">
+              <ul className="flex flex-wrap gap-1.5 border-t border-white/80 bg-gradient-to-b from-sky-50/50 to-cyan-50/40 px-2 py-2">
                 {t.habitat.species.map((sp, i) => {
                   const on = follow?.tankId === t.id && follow.species === i;
                   return (
@@ -92,7 +87,7 @@ export function HabitatsPanel() {
                         aria-pressed={on}
                         className={cls(
                           "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11.5px] font-medium transition-colors",
-                          on ? "border-brand bg-brand text-white" : "border-line bg-white text-ink-2 hover:border-brand/50 hover:text-brand",
+                          on ? "btn-glossy border-brand bg-brand text-white" : "border-white bg-white/70 text-ink-2 shadow-[0_1px_4px_-2px_rgba(14,58,110,0.25)] hover:border-sky-200 hover:bg-white hover:text-brand",
                         )}
                         title={`Fly to and follow the ${sp.label.toLowerCase()} in ${t.name}`}
                       >

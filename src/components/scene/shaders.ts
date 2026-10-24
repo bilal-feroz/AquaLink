@@ -543,7 +543,7 @@ export function visitorMaterial() {
       attribute vec3 aCloth;
       attribute vec3 aSkin;
       attribute float aPhase;
-      attribute vec3 aWalk; // gait phase, moving (0/1), photo pose (0..1)
+      attribute vec3 aWalk; // gait phase, moving (0/1), photo lean (0..1)
       uniform float uTime; uniform float uMotion;
       varying vec3 vN; varying vec3 vWorld; varying float vPart; varying vec3 vCloth; varying vec3 vSkin; varying float vH;
       void main() {
@@ -555,14 +555,9 @@ export function visitorMaterial() {
           float h = max(0.0, 0.88 - p.y);
           p.z += sin(swing * side) * h;
           p.y += (1.0 - cos(swing * side)) * h;
-        } else if (aPart < 1.5 && abs(p.x) > 0.19 && p.y < 1.45) {
-          // Arms swing opposite the legs; the right arm lifts a phone for photos.
-          float side = p.x < 0.0 ? -1.0 : 1.0;
-          float h = max(0.0, 1.42 - p.y);
-          float s = -swing * side * 0.8 + (p.x > 0.0 ? aWalk.z * 1.35 : 0.0);
-          p.z += sin(s) * h;
-          p.y += (1.0 - cos(s)) * h;
         }
+        // Lean in a little to take a photo.
+        p.z += aWalk.z * 0.07 * smoothstep(0.9, 1.7, p.y);
         p.y += abs(sin(aWalk.x)) * 0.035 * aWalk.y;
         // Subtle idle sway while standing.
         float sway = sin(uTime * 0.8 + aPhase * 6.28) * 0.025 * uMotion * smoothstep(0.6, 1.8, p.y) * (1.0 - aWalk.y);

@@ -17,12 +17,17 @@ interface Occluder {
 /**
  * Projects registered DOM labels onto the canvas every frame, hides labels that
  * are behind the camera, off-screen, occluded or overlapping a higher-priority
- * label. Occlusion and de-cluttering run every few frames.
+ * label. Occlusion and de-cluttering run every few frames, and a label only
+ * changes state once the new state has held for a few frames, so labels do not
+ * flicker while the camera glides.
  */
+const SETTLE_FRAMES = 6;
+
 export function LabelProjector() {
   const { camera, size } = useThree();
   const frame = useRef(0);
   const visibleState = useRef(new Map<string, boolean>());
+  const shown = useRef(new Map<string, { show: boolean; streak: number }>());
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const v = useMemo(() => new THREE.Vector3(), []);
   const dir = useMemo(() => new THREE.Vector3(), []);
@@ -65,7 +70,9 @@ export function LabelProjector() {
       const x = (v.x * 0.5 + 0.5) * w;
       const y = (-v.y * 0.5 + 0.5) * h;
       const dist = camera.position.distanceTo(e.anchor);
-      let show = !behind && x > -40 && x < w + 40 && y > -20 && y < h + 40 && dist < e.maxDistance;
+      // Behind the camera, off screen or too far: hide at once.
+      const onScreen = !behind && x > -40 && x < w + 40 && y > -20 && y < h + 40 && dist < e.maxDistance;
+      let show = onScreen;
 
       const ew = e.el.offsetWidth;
       const eh = e.el.offsetHeight;
@@ -92,20 +99,36 @@ export function LabelProjector() {
         show = visibleState.current.get(e.id) ?? show;
       }
 
+      const rect = { x0: left, y0: top, x1: left + ew, y1: top + eh };
       if (show) {
         // De-clutter: skip if overlapping a higher-priority label.
-        const rect = { x0: left, y0: top, x1: left + ew, y1: top + eh };
         const overlap = placed.some((p) => {
           const ox = Math.min(p.x1, rect.x1) - Math.max(p.x0, rect.x0);
           const oy = Math.min(p.y1, rect.y1) - Math.max(p.y0, rect.y0);
           return ox > 6 && oy > 4 && ox * oy > ew * eh * 0.18;
         });
         if (overlap && e.priority < 90) show = false;
-        else placed.push(rect);
       }
 
+      // Hysteresis for occlusion and de-cluttering.
+      const st = shown.current.get(e.id) ?? { show, streak: SETTLE_FRAMES };
+      if (!onScreen) {
+        st.show = false;
+        st.streak = 0;
+      } else if (st.show !== show) {
+        st.streak += 1;
+        if (st.streak >= SETTLE_FRAMES) {
+          st.show = show;
+          st.streak = 0;
+        }
+      } else st.streak = 0;
+      shown.current.set(e.id, st);
+      show = onScreen && st.show;
+      if (show) placed.push(rect);
+
       const s = e.el.style;
-      s.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
+      // Sub-pixel placement keeps labels gliding with the camera instead of stepping.
+      s.transform = `translate3d(${left.toFixed(1)}px, ${top.toFixed(1)}px, 0)`;
       if (show) {
         s.visibility = "visible";
         s.opacity = String(e.emphasis);

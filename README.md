@@ -45,12 +45,26 @@ Useful URLs:
 - `http://localhost:3000/?scenario=onset&mode=operations` — moments after the C-2 trip, before the backup starts
 - add `&select=PMP-C2` (or any asset id) to open an asset's details
 
-Production build:
+Production build (loads noticeably faster than `npm run dev`, which compiles on
+first request — use it for demos):
 
 ```bash
 npm run build
 npm start
 ```
+
+### Load time
+
+- The 3D engine is a separate chunk; the initial page JavaScript is 271 kB.
+- Every scene shader is compiled before the first frame with
+  `renderer.compileAsync` (parallel compilation where the driver supports it)
+  behind an underwater loading screen, so the page never freezes while the scene
+  builds. A cold production load shows the 3D scene in about 3.5–4 s on the test
+  machine, and about 1.7 s once the browser has cached the shaders.
+- Habitat stills in the panels are pre-rendered images in `public/habitats/`,
+  not rendered at runtime (that used to recompile every material for an
+  on-screen pass). Regenerate them after changing a habitat with
+  `node scripts/capture-habitats.mjs` while the app is running.
 
 ## Recommended 60–90 second demo
 
@@ -68,7 +82,7 @@ coordinates in both modes. Modes change camera, visibility layers, architectural
 ghosting and emphasis — never topology. The scene includes:
 
 - multilevel atrium (L1–L3) with gallery decks, glass balustrades, cove lighting, columns, escalators, skylight and a reflective floor;
-- visitors who walk from tank to tank, stop to look, and now and then take a photo (with a small flash);
+- visitors (simple body-and-legs figures) who walk from tank to tank, stop to look, and now and then lean in to take a photo with a small camera flash;
 - six habitats with analytic water volume (Beer–Lambert haze from the view-ray chord through the cylinder), interior caustics and light shafts, Fresnel glass, sand, rocks, corals, anemones, seagrass and mangrove roots;
 - GPU-animated marine life (sharks, rays, a trevally shoal, reef fish, clownfish, seahorses) — counts come from the habitat configuration;
 - the life-support plant hall behind the atrium (not below it) with modeled pumps (motor, coupling guard, volute, nozzles, status beacon), sand filters, valves with actuators and position indicators, sensors, headers, and every pipe routed in 3D under the floor and along the deck soffits; walls between the camera and the subject fade out, so orbiting never ends on a blank wall;
@@ -76,8 +90,20 @@ ghosting and emphasis — never topology. The scene includes:
 - fault and heal effects: a red wave travelling along the affected pipes, pulsing rings and halos on the root asset and every affected tank, and green rings and sparkles when it recovers.
 
 **Labels** are compact HTML pills with a stem to their asset, projected every
-frame, de-cluttered by priority, and keyboard focusable. Details expand only on
-hover or selection, so labels stay out of the way of the tanks.
+frame at sub-pixel precision, de-cluttered by priority, and keyboard focusable.
+A label only appears or disappears once that state has held for a few frames,
+and it fades both ways, so nothing flickers while the camera moves. Details
+expand only on hover or selection, and scrolling over a label still zooms.
+
+**Camera.** Every programmatic move (mode switch, floor, focus, incident
+reframe) is a calm glide: the target and the orbit (distance, angles) are eased
+separately with a smootherstep curve, so the camera arcs round the subject
+rather than cutting through it, always takes the shortest way round, and takes
+longer for bigger moves. Grabbing the view stops a glide immediately.
+
+**Look and feel.** Frosted-glass panels over a soft aqua backdrop, glossy
+action buttons, and frosted-water controls over the 3D view with a lit aqua
+lens marking the active choice.
 
 **Scenarios.** Two simulated failures, run from the *Scenario lab* under
 Facility status: **Pump C-2 motor fault** (Tanks B and C; healed by an authorised

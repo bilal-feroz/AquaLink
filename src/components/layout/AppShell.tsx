@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { CheckCircle2, Info, TriangleAlert, XCircle } from "lucide-react";
+import { TANKS } from "@/lib/data/facility";
 import { cls } from "@/lib/format";
 import type { ScenarioPreset } from "@/lib/simulation/scenario";
 import { effectiveReducedMotion, useAppStore } from "@/store/useAppStore";
@@ -129,7 +130,7 @@ function Toasts() {
       {toasts.map((t) => {
         const Icon = icon[t.tone];
         return (
-          <button key={t.id} onClick={() => dismiss(t.id)} className="fade-in pointer-events-auto flex items-center gap-2.5 rounded-xl border border-line bg-white px-4 py-2.5 text-[13px] font-medium text-ink shadow-xl">
+          <button key={t.id} onClick={() => dismiss(t.id)} className="glass fade-in pointer-events-auto flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-[13px] font-medium text-ink shadow-xl">
             <Icon aria-hidden className={cls("size-4", tone[t.tone])} />
             {t.text}
           </button>
@@ -142,8 +143,8 @@ function Toasts() {
 export function AppShell() {
   const hydrated = useBoot();
   useEffect(() => {
-    // Read-only hook for automated acceptance tests (scripts/acceptance.mjs).
-    (window as unknown as { aqualink?: unknown }).aqualink = { store: useAppStore };
+    // Read-only hook for automated scripts (acceptance tests, habitat captures).
+    (window as unknown as { aqualink?: unknown }).aqualink = { store: useAppStore, tanks: TANKS };
   }, []);
   useSimClock();
   useReducedMotionWatcher();
@@ -166,7 +167,7 @@ export function AppShell() {
           </div>
           {facility && hydrated && <RightPanel />}
           {!facility && (
-            <div className="absolute inset-3 overflow-hidden rounded-2xl border border-line bg-white">
+            <div className="glass absolute inset-3 overflow-hidden rounded-2xl">
               {section === "assets" && <AssetsView />}
               {section === "incidents" && <IncidentsView />}
               {section === "tasks" && <TasksView />}

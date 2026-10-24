@@ -48,9 +48,9 @@ function ScenarioTile({ def }: { def: ScenarioDef }) {
   const canSkip = live && !inc?.stabilizedAt && inc?.status === "active";
 
   return (
-    <div className={cls("rounded-xl border p-3 transition-colors", running ? "border-red-200 bg-gradient-to-br from-red-50 to-white" : healed ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white" : "border-line bg-white")}>
+    <div className={cls("rounded-xl border p-3 transition-colors", running ? "border-red-200/90 bg-gradient-to-br from-red-50/95 to-white/70" : healed ? "border-emerald-200/90 bg-gradient-to-br from-emerald-50/95 to-white/70" : "glass-tile")}>
       <div className="flex items-start gap-3">
-        <span className={cls("grid size-9 shrink-0 place-items-center rounded-lg", running ? "bg-crit text-white" : healed ? "bg-ok text-white" : "bg-slate-100 text-ink-2")}>
+        <span className={cls("grid size-9 shrink-0 place-items-center rounded-lg", running ? "btn-glossy bg-crit text-white" : healed ? "btn-glossy bg-ok text-white" : "bg-gradient-to-b from-sky-50 to-cyan-100/70 text-cyan-700 ring-1 ring-white")}>
           <Icon aria-hidden className="size-4.5" />
         </span>
         <div className="min-w-0 flex-1">
@@ -82,18 +82,18 @@ function ScenarioTile({ def }: { def: ScenarioDef }) {
           <button
             disabled={otherRunning}
             onClick={() => a.runScenario(def.id)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-crit px-3 text-[12.5px] font-semibold text-white shadow-sm hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn-glossy inline-flex h-8 items-center gap-1.5 rounded-lg bg-crit px-3 text-[12.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Play aria-hidden className="size-3.5" /> {healed ? "Run again" : "Run scenario"}
           </button>
         )}
         {canSkip && (
-          <button onClick={a.stabilize} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-white px-3 text-[12.5px] font-medium hover:bg-slate-50">
+          <button onClick={a.stabilize} className="glass-btn inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-medium">
             <SkipForward aria-hidden className="size-3.5" /> Skip to stable
           </button>
         )}
         {canHeal && (
-          <button onClick={a.recover} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-ok px-3 text-[12.5px] font-semibold text-white shadow-sm hover:bg-green-800">
+          <button onClick={a.recover} className="btn-glossy inline-flex h-8 items-center gap-1.5 rounded-lg bg-ok px-3 text-[12.5px] font-semibold text-white">
             <HeartPulse aria-hidden className="size-3.5" /> {def.heal}
           </button>
         )}
@@ -111,15 +111,15 @@ export function ScenarioCard() {
   const ff = useAppStore((s) => s.fastForwarding);
   const a = useAppStore.getState();
   return (
-    <section aria-labelledby="scenario-title" className="overflow-hidden rounded-2xl border border-line bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-      <header className="bg-gradient-to-r from-[#0d1b33] via-[#11264a] to-[#173563] px-4 pt-3 pb-2.5 text-white">
+    <section aria-labelledby="scenario-title" className="glass overflow-hidden rounded-2xl">
+      <header className="water-header px-4 pt-3 pb-2.5 text-white">
         <div className="flex items-center justify-between gap-2">
           <h3 id="scenario-title" className="flex items-center gap-2 text-[13.5px] font-semibold whitespace-nowrap">
             <FlaskConical aria-hidden className="size-4 text-sky-300" /> Scenario lab
           </h3>
           <span className="rounded border border-white/25 px-1.5 py-px text-[9.5px] font-bold tracking-wide text-white/70 uppercase">Simulated</span>
         </div>
-        <div className="mt-2 flex items-center gap-1 rounded-lg bg-white/8 p-1">
+        <div className="mt-2 flex items-center gap-1 rounded-lg bg-white/10 p-1 ring-1 ring-white/10">
           <span className="tabular mr-auto pl-1.5 text-[12px] text-white/80">{clock(sim.t)}</span>
           <button aria-label={playing ? "Pause simulation" : "Resume simulation"} onClick={a.togglePlaying} className="grid size-7 place-items-center rounded-md hover:bg-white/10">
             {playing ? <Pause aria-hidden className="size-3.5" /> : <Play aria-hidden className="size-3.5" />}
@@ -143,10 +143,10 @@ export function ScenarioCard() {
         ))}
         <div className="flex flex-wrap items-center gap-1.5 pt-1">
           <span className="text-[11px] font-semibold text-subtle uppercase">Presets</span>
-          <button className="rounded-md border border-line px-2 py-1 text-[11.5px] font-medium hover:bg-slate-50" onClick={() => a.loadPreset("incident")}>
+          <button className="glass-btn rounded-md px-2 py-1 text-[11.5px] font-medium" onClick={() => a.loadPreset("incident")}>
             Pump fault @ 10:24
           </button>
-          <button className="rounded-md border border-line px-2 py-1 text-[11.5px] font-medium hover:bg-slate-50" onClick={() => a.loadPreset("filter")}>
+          <button className="glass-btn rounded-md px-2 py-1 text-[11.5px] font-medium" onClick={() => a.loadPreset("filter")}>
             Filter clog @ 10:20
           </button>
           <button className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11.5px] font-medium text-muted hover:bg-slate-100 hover:text-ink" onClick={() => a.openDialog({ resetConfirm: true })}>

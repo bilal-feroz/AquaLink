@@ -27,10 +27,10 @@ export const STATUS_ICONS: Record<StatusIcon, LucideIcon> = {
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "subtle";
 
 const VARIANT: Record<Variant, string> = {
-  primary: "bg-brand text-white hover:bg-brand-600 shadow-sm",
-  secondary: "bg-white text-ink border border-line hover:border-line-strong hover:bg-slate-50 shadow-sm",
+  primary: "btn-glossy bg-brand text-white",
+  secondary: "glass-btn text-ink",
   ghost: "text-ink-2 hover:bg-slate-100",
-  danger: "bg-crit text-white hover:bg-red-700 shadow-sm",
+  danger: "btn-glossy bg-crit text-white",
   subtle: "bg-brand-50 text-brand-600 hover:bg-brand-100",
 };
 
@@ -83,7 +83,7 @@ export function Dot({ tone, className, pulse }: { tone: Tone; className?: string
 
 export function Card({ title, action, children, className, id }: { title?: ReactNode; action?: ReactNode; children: ReactNode; className?: string; id?: string }) {
   return (
-    <section aria-labelledby={title && id ? id : undefined} className={cls("rounded-xl border border-line bg-panel", className)}>
+    <section aria-labelledby={title && id ? id : undefined} className={cls("glass rounded-xl", className)}>
       {(title || action) && (
         <header className="flex items-center justify-between gap-2 px-4 pt-3.5 pb-2">
           {title && (
@@ -207,7 +207,7 @@ export function Dialog({ open, onClose, title, children, wide, footer }: { open:
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cls("fade-in flex max-h-[88vh] w-full flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-2xl", wide ? "max-w-3xl" : "max-w-lg")}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cls("glass fade-in flex max-h-[88vh] w-full flex-col overflow-hidden rounded-2xl bg-white/90 shadow-2xl", wide ? "max-w-3xl" : "max-w-lg")}>
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
           <h2 id={titleId} className="text-base font-semibold text-ink">
             {title}

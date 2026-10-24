@@ -87,6 +87,23 @@ function operationsPreset(rootId?: string, tanks: string[] = []): CameraPreset {
   return { position: [target[0] + dir.x * dist, target[1] + dir.y * dist, target[2] + dir.z * dist], target };
 }
 
+/** One programmatic camera move: eased along an orbit arc rather than a straight line. */
+interface Glide {
+  t: number;
+  dur: number;
+  fromTarget: THREE.Vector3;
+  toTarget: THREE.Vector3;
+  from: THREE.Spherical;
+  to: THREE.Spherical;
+}
+
+/** Smootherstep: zero velocity and acceleration at both ends, a soft peak in the middle. */
+const easeInOut = (x: number) => x * x * x * (x * (x * 6 - 15) + 10);
+const smoothstep = (a: number, b: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+
 export function CameraRig() {
   const ref = useRef<CameraControls>(null);
   const camera = useThree((s) => s.camera);
@@ -103,8 +120,33 @@ export function CameraRig() {
   const reduced = useAppStore(effectiveReducedMotion);
   const first = useRef(true);
   const lastDist = useRef(40);
+  const glide = useRef<Glide | null>(null);
 
-  const go = (p: CameraPreset, smooth = true, frame = false) => {
+  /**
+   * Starts a calm, eased move. Target and orbit (radius, angles) are interpolated
+   * separately so the camera arcs around the subject instead of cutting through
+   * it, takes the shortest way round, and slows in and out. Longer moves take
+   * a little longer, so nothing whips across the screen.
+   */
+  const startGlide = (pos: [number, number, number], target: [number, number, number], minDur = 0.9) => {
+    const c = ref.current;
+    if (!c) return;
+    const fromTarget = c.getTarget(new THREE.Vector3(), false);
+    const fromPos = c.getPosition(new THREE.Vector3(), false);
+    const toTarget = new THREE.Vector3(...target);
+    const from = new THREE.Spherical().setFromVector3(fromPos.sub(fromTarget));
+    const to = new THREE.Spherical().setFromVector3(new THREE.Vector3(...pos).sub(toTarget));
+    let dTheta = to.theta - from.theta;
+    dTheta = ((((dTheta + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) - Math.PI;
+    to.theta = from.theta + dTheta;
+    const turn = Math.abs(dTheta) + Math.abs(to.phi - from.phi);
+    const travel = fromTarget.distanceTo(toTarget);
+    const zoom = Math.abs(Math.log(Math.max(0.01, to.radius) / Math.max(0.01, from.radius)));
+    const dur = Math.min(2.8, Math.max(minDur, 0.85 + turn * 0.42 + travel * 0.014 + zoom * 0.35));
+    glide.current = { t: 0, dur, fromTarget, toTarget, from, to };
+  };
+
+  const go = (p: CameraPreset, smooth = true, frame = false, minDur?: number) => {
     const c = ref.current;
     if (!c) return;
     let pos = p.position;
@@ -116,7 +158,11 @@ export function CameraRig() {
       pos = [p.target[0] + (pos[0] - p.target[0]) * k, p.target[1] + (pos[1] - p.target[1]) * k, p.target[2] + (pos[2] - p.target[2]) * k];
     }
     lastDist.current = Math.hypot(pos[0] - p.target[0], pos[1] - p.target[1], pos[2] - p.target[2]);
-    void c.setLookAt(...pos, ...p.target, smooth && !reduced);
+    if (smooth && !reduced) startGlide(pos, p.target, minDur);
+    else {
+      glide.current = null;
+      void c.setLookAt(...pos, ...p.target, false);
+    }
   };
 
   // Mode / level / reset transitions.
@@ -127,7 +173,7 @@ export function CameraRig() {
       const [root, tanks] = incidentKey.split("|");
       p = operationsPreset(root || undefined, tanks ? tanks.split(",") : []);
     } else p = CAMERA_PRESETS.public;
-    go(p, !first.current, !level);
+    go(p, !first.current, !level, 1.3);
     first.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, level, nonce]);
@@ -140,7 +186,7 @@ export function CameraRig() {
     lastRoot.current = incidentRoot;
     if (!incidentRoot || incidentRoot === prev || mode !== "operations" || level || useAppStore.getState().follow) return;
     const tanks = incidentKey.split("|")[1];
-    go(operationsPreset(incidentRoot, tanks ? tanks.split(",") : []), true, true);
+    go(operationsPreset(incidentRoot, tanks ? tanks.split(",") : []), true, true, 1.8);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incidentRoot]);
 
@@ -182,12 +228,13 @@ export function CameraRig() {
     c.boundaryFriction = 0.2;
     c.minDistance = 2.5;
     c.maxDistance = 85;
-    c.smoothTime = 0.55;
-    c.draggingSmoothTime = 0.12;
+    c.smoothTime = 0.6;
+    c.draggingSmoothTime = 0.16;
     c.dollySpeed = 0.6;
     c.truckSpeed = 1.4;
     // Grabbing the view hands control back to the user.
     const stop = () => {
+      glide.current = null;
       if (useAppStore.getState().follow) useAppStore.getState().setFollow(null);
     };
     c.addEventListener("controlstart", stop);
@@ -201,6 +248,7 @@ export function CameraRig() {
   const followStart = useRef(0);
   useEffect(() => {
     if (!follow || !ref.current) return;
+    glide.current = null;
     followStart.current = performance.now();
     ref.current.getTarget(followTarget.current);
     ref.current.getPosition(followPos.current);
@@ -227,11 +275,28 @@ export function CameraRig() {
         const dir = radial.clone().multiplyScalar(0.55).add(atrium.multiplyScalar(0.45)).normalize();
         const out = t.radius - Math.hypot(ox, oz) + (t.radius > 4 ? 4.2 : 3.2);
         const desired = tmp.current.set(fish.current.x + dir.x * out, fish.current.y + 0.6, fish.current.z + dir.y * out);
-        const k = 1 - Math.exp(-dt * (performance.now() - followStart.current < 1500 ? 2.2 : 4));
-        followTarget.current.lerp(fish.current, k);
-        followPos.current.lerp(desired, k);
+        const ramp = smoothstep(0, 2.4, (performance.now() - followStart.current) / 1000);
+        const step = Math.min(dt, 0.05);
+        followTarget.current.lerp(fish.current, 1 - Math.exp(-step * (1.2 + 3.3 * ramp)));
+        followPos.current.lerp(desired, 1 - Math.exp(-step * (0.8 + 2.4 * ramp)));
         void c.setLookAt(followPos.current.x, followPos.current.y, followPos.current.z, followTarget.current.x, followTarget.current.y, followTarget.current.z, false);
       }
+      return;
+    }
+
+    const g = glide.current;
+    if (g) {
+      g.t = Math.min(1, g.t + Math.min(dt, 1 / 30) / g.dur);
+      const e = easeInOut(g.t);
+      const tgt = tmp.current.copy(g.fromTarget).lerp(g.toTarget, e);
+      const sph = new THREE.Spherical(
+        Math.exp(THREE.MathUtils.lerp(Math.log(g.from.radius), Math.log(g.to.radius), e)),
+        THREE.MathUtils.lerp(g.from.phi, g.to.phi, e),
+        THREE.MathUtils.lerp(g.from.theta, g.to.theta, e),
+      );
+      const off = new THREE.Vector3().setFromSpherical(sph);
+      void c.setLookAt(tgt.x + off.x, tgt.y + off.y, tgt.z + off.z, tgt.x, tgt.y, tgt.z, false);
+      if (g.t >= 1) glide.current = null;
       return;
     }
 

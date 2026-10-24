@@ -4,25 +4,14 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { SceneLabels } from "@/components/scene/SceneLabels";
 import { useAppStore } from "@/store/useAppStore";
+import { SceneLoader } from "./SceneLoader";
 import { TextView } from "./TextView";
 import { FloorSelector, FlowLegend, FollowBadge, IncidentTimelineOverlay, ModeSwitcher, ViewerButtons, ViewerControls } from "./ViewerOverlays";
 
 const FacilityCanvas = dynamic(() => import("@/components/scene/FacilityCanvas"), {
   ssr: false,
-  loading: () => <SceneLoading />,
+  loading: () => <SceneLoader step="Loading the 3D engine…" />,
 });
-
-function SceneLoading() {
-  return (
-    <div className="absolute inset-0 grid place-items-center bg-scene text-white">
-      <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3">
-        <span className="size-4 animate-spin rounded-full border-2 border-white/25 border-t-sky-300" />
-        <span className="text-[13px] text-white/80">Building the facility twin…</span>
-        <span className="sr-only">Loading 3D facility</span>
-      </div>
-    </div>
-  );
-}
 
 export function Viewer({ active }: { active: boolean }) {
   const mode = useAppStore((s) => s.mode);
@@ -50,7 +39,7 @@ export function Viewer({ active }: { active: boolean }) {
       aria-label="3D facility viewer"
     >
       {supported && !webglFailed && <FacilityCanvas active={active && !textView} />}
-      {supported === null && <SceneLoading />}
+      {supported === null && <SceneLoader step="Loading the 3D engine…" />}
       {!showText && supported && <SceneLabels />}
       {showText && <TextView reason={webglFailed ? "3D rendering is unavailable on this device (WebGL could not start). All facility information is shown as text instead." : undefined} />}
 

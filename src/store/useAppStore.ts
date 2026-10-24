@@ -103,7 +103,6 @@ export interface AppState {
   quality: Quality;
   showTimeline: boolean;
   cameraNonce: number;
-  captures: Record<string, string>;
   follow: FollowTarget | null;
   pulse: FxPulse | null;
   toasts: Toast[];
@@ -152,7 +151,6 @@ export interface AppState {
   setQuality: (q: Quality) => void;
   setShowTimeline: (v: boolean) => void;
   resetCamera: () => void;
-  setCaptures: (c: Record<string, string>) => void;
   toast: (text: string, tone?: Toast["tone"]) => void;
   dismissToast: (id: number) => void;
   openDialog: (d: Partial<Dialogs>) => void;
@@ -261,7 +259,6 @@ export const useAppStore = create<AppState>()(
         quality: "high",
         showTimeline: true,
         cameraNonce: 0,
-        captures: {},
         follow: null,
         pulse: null,
         toasts: [],
@@ -425,7 +422,6 @@ export const useAppStore = create<AppState>()(
         setQuality: (quality) => set({ quality }),
         setShowTimeline: (showTimeline) => set({ showTimeline }),
         resetCamera: () => set({ cameraNonce: get().cameraNonce + 1, level: null }),
-        setCaptures: (captures) => set({ captures }),
         toast: (text, tone = "info") => {
           const id = ++toastId;
           set({ toasts: [...get().toasts, { id, text, tone }].slice(-4) });

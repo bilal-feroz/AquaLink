@@ -17,7 +17,7 @@ import { ScenarioCard } from "./ScenarioCard";
 
 export function PanelCard({ title, icon: Icon, action, children, className }: { title: string; icon?: LucideIcon; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cls("rounded-2xl border border-line bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]", className)}>
+    <section className={cls("glass rounded-2xl", className)}>
       <header className="flex items-center justify-between gap-2 px-4 pt-3.5 pb-2">
         <h3 className="flex items-center gap-2 text-[13.5px] font-semibold text-ink">
           {Icon && <Icon aria-hidden className="size-4 text-brand" />}
@@ -32,7 +32,7 @@ export function PanelCard({ title, icon: Icon, action, children, className }: { 
 
 function Kpi({ icon: Icon, value, label, sub, tint }: { icon: LucideIcon; value: string; label: string; sub?: string; tint: string }) {
   return (
-    <div className="rounded-xl border border-line bg-white px-3 py-2.5">
+    <div className="glass-tile rounded-xl px-3 py-2.5">
       <div className="flex items-center gap-2">
         <span className="grid size-7 place-items-center rounded-lg" style={{ background: `${tint}1a`, color: tint }}>
           <Icon aria-hidden className="size-4" strokeWidth={2} />
@@ -68,8 +68,8 @@ export function FacilityStatusPanel() {
       <section
         aria-labelledby="fs-title"
         className={cls(
-          "overflow-hidden rounded-2xl border shadow-[0_1px_2px_rgba(16,24,40,0.04)]",
-          issue ? "border-red-200 bg-gradient-to-br from-red-50 via-white to-white" : "border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-white",
+          "glass overflow-hidden rounded-2xl",
+          issue ? "border-red-200/80 bg-gradient-to-br from-red-50/90 via-white/70 to-white/55" : "border-emerald-100/90 bg-gradient-to-br from-emerald-50/85 via-white/70 to-cyan-50/50",
         )}
       >
         <header className="flex items-center justify-between px-4 pt-3.5">
@@ -79,7 +79,7 @@ export function FacilityStatusPanel() {
           <SimTag />
         </header>
         <div className="flex items-center gap-3 px-4 pt-2">
-          <span className={cls("grid size-11 place-items-center rounded-2xl text-white shadow-sm", issue ? "pulse-crit bg-crit" : "bg-ok")}>
+          <span className={cls("btn-glossy grid size-11 place-items-center rounded-2xl text-white", issue ? "pulse-crit bg-crit" : "bg-ok")}>
             {issue ? <TriangleAlert aria-hidden className="size-5" /> : <CircleCheck aria-hidden className="size-5" />}
           </span>
           <div className="min-w-0">
@@ -222,7 +222,7 @@ export function IncidentSummaryPanel() {
   const next = itasks.find((t) => t.status !== "done");
   const backup = inc.backupPumpId ? sim.pumps[inc.backupPumpId] : undefined;
   return (
-    <section className="overflow-hidden rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 via-white to-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+    <section className="glass overflow-hidden rounded-2xl border-red-200/80 bg-gradient-to-br from-red-50/90 via-white/70 to-white/55">
       <div className="flex items-start gap-3 px-4 pt-4">
         <span className="pulse-crit grid size-10 shrink-0 place-items-center rounded-2xl bg-crit text-white">
           <TriangleAlert aria-hidden className="size-5" />
@@ -239,14 +239,14 @@ export function IncidentSummaryPanel() {
       </div>
       <ul className="mt-3 space-y-1.5 px-4">
         <li>
-          <button onClick={() => a.select(root.id)} className="flex w-full items-center justify-between rounded-lg border border-line bg-white px-3 py-2 text-left hover:bg-slate-50">
+          <button onClick={() => a.select(root.id)} className="glass-btn flex w-full items-center justify-between rounded-lg px-3 py-2 text-left">
             <span className="text-[13px] font-medium">Root: {root.name}</span>
             <span className="text-[11.5px] font-semibold text-crit">fault</span>
           </button>
         </li>
         {inc.affectedTankIds.map((id) => (
           <li key={id}>
-            <button onClick={() => a.select(id)} className="flex w-full items-center justify-between rounded-lg border border-line bg-white px-3 py-2 text-left hover:bg-slate-50">
+            <button onClick={() => a.select(id)} className="glass-btn flex w-full items-center justify-between rounded-lg px-3 py-2 text-left">
               <span className="text-[13px] font-medium">
                 {TANK_BY_ID[id].name} <span className="text-muted">· {TANK_BY_ID[id].habitat.name}</span>
               </span>
@@ -258,7 +258,7 @@ export function IncidentSummaryPanel() {
         ))}
         {backup && inc.backupPumpId && (
           <li>
-            <button onClick={() => a.select(inc.backupPumpId!)} className="flex w-full items-center justify-between rounded-lg border border-line bg-white px-3 py-2 text-left hover:bg-slate-50">
+            <button onClick={() => a.select(inc.backupPumpId!)} className="glass-btn flex w-full items-center justify-between rounded-lg px-3 py-2 text-left">
               <span className="text-[13px] font-medium">Backup: Pump {ASSET_BY_ID[inc.backupPumpId].code}</span>
               <StatusBadge size="sm" info={pumpStatusInfo(backup)} />
             </button>
@@ -275,7 +275,7 @@ export function IncidentSummaryPanel() {
         <button onClick={() => a.setSection("incidents")} className="inline-flex h-8 items-center rounded-lg bg-brand px-3 text-[12.5px] font-semibold text-white hover:bg-brand-600">
           Open incident
         </button>
-        <button onClick={() => a.setSection("tasks")} className="inline-flex h-8 items-center rounded-lg border border-line bg-white px-3 text-[12.5px] font-medium hover:bg-slate-50">
+        <button onClick={() => a.setSection("tasks")} className="glass-btn inline-flex h-8 items-center rounded-lg px-3 text-[12.5px] font-medium">
           Tasks ({itasks.filter((t) => t.status !== "done").length} open)
         </button>
       </div>

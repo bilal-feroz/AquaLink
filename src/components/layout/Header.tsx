@@ -30,7 +30,7 @@ function usePopover() {
 export function Logo() {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-sky-500 to-brand text-white shadow-sm">
+      <span className="btn-glossy grid size-8 place-items-center rounded-lg bg-gradient-to-br from-sky-400 via-cyan-500 to-brand text-white">
         <Waves aria-hidden className="size-[18px]" strokeWidth={2.4} />
       </span>
       <span className="text-[19px] font-semibold tracking-tight text-ink">AquaLink</span>
@@ -52,7 +52,7 @@ export function Header() {
   const unseen = Math.max(0, sim.events.length - seen);
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-white px-4">
+    <header className="glass-bar relative z-20 flex h-14 shrink-0 items-center justify-between gap-4 border-b px-4">
       <div className="flex min-w-0 items-center gap-4">
         <Logo />
         <span aria-hidden className="h-6 w-px bg-line" />

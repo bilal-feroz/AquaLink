@@ -347,17 +347,11 @@ export function personGeometry() {
   const torso = new THREE.CapsuleGeometry(0.19, 0.42, 4, 8);
   torso.scale(1, 1, 0.68);
   torso.translate(0, 1.18, 0);
-  const armL = new THREE.CapsuleGeometry(0.055, 0.5, 3, 6);
-  armL.rotateZ(0.08);
-  armL.translate(-0.25, 1.12, 0);
-  const armR = armL.clone();
-  armR.rotateZ(-0.16);
-  armR.translate(0.5, 0, 0);
   const head = new THREE.SphereGeometry(0.115, 10, 8);
   head.translate(0, 1.6, 0);
   const hair = new THREE.SphereGeometry(0.122, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.55);
   hair.translate(0, 1.615, -0.008);
-  return merge([prep(legL, 0), prep(legR, 0), prep(torso, 1), prep(armL, 1), prep(armR, 1), prep(head, 2), prep(hair, 3)]);
+  return merge([prep(legL, 0), prep(legR, 0), prep(torso, 1), prep(head, 2), prep(hair, 3)]);
 }
 
 export function treeGeometry(seed: number) {

@@ -4,7 +4,7 @@ import { Environment, Lightformer, PerformanceMonitor } from "@react-three/drei"
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer, Outline, Selection, SMAA, ToneMapping, Vignette } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { TANKS } from "@/lib/data/facility";
 import { activeIncidents } from "@/lib/simulation/engine";
@@ -21,6 +21,7 @@ import { Pipes } from "./Pipes";
 import { sceneFx } from "./sceneFx";
 import { useTraceSet } from "./trace";
 import { Visitors } from "./Visitors";
+import { SceneLoader } from "@/components/viewer/SceneLoader";
 
 /** Eases global scene effects towards the current mode every frame. */
 function FxDriver() {
@@ -37,7 +38,7 @@ function FxDriver() {
     sceneFx.ghostTarget = mode === "public" ? 0 : 1;
     sceneFx.incidentTarget = mode === "operations" && hasIncident ? 1 : 0;
     sceneFx.shellTarget = shell ? 1 : 0;
-    const k = reduced ? 1 : 1 - Math.exp(-d * 3.2);
+    const k = reduced ? 1 : 1 - Math.exp(-d * 2.4);
     sceneFx.ghost += (sceneFx.ghostTarget - sceneFx.ghost) * k;
     sceneFx.incident += (sceneFx.incidentTarget - sceneFx.incident) * k;
     sceneFx.shellVisible += (sceneFx.shellTarget - sceneFx.shellVisible) * k;
@@ -133,59 +134,6 @@ function Engineering() {
   );
 }
 
-/**
- * Renders a still of each habitat from the digital twin for the gallery panel.
- * Uses the main renderer on a frame boundary, then restores normal rendering.
- */
-function HabitatCaptures() {
-  const { gl, scene, size } = useThree();
-  const setCaptures = useAppStore((s) => s.setCaptures);
-  const mode = useAppStore((s) => s.mode);
-  const done = useRef(false);
-  useEffect(() => {
-    // Capture once, the first time the solid public building is on screen.
-    if (done.current || mode !== "public") return;
-    const id = setTimeout(() => {
-      if (useAppStore.getState().mode !== "public" || sceneFx.ghost > 0.01) return;
-      done.current = true;
-      const out: Record<string, string> = {};
-      const cam = new THREE.PerspectiveCamera(40, size.width / size.height, 0.2, 200);
-      const canvas = document.createElement("canvas");
-      canvas.width = 360;
-      canvas.height = 240;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const prevTarget = gl.getRenderTarget();
-      for (const t of TANKS) {
-        const cy = t.position[1] + t.plinth + Math.min(t.height, 6) * 0.48;
-        const dist = t.radius * 2.15 + 1.2;
-        // View each habitat from the atrium side so columns and walls stay out of shot.
-        const dir = new THREE.Vector3(-t.position[0] * 0.55, 0, 9 - t.position[2]).normalize();
-        if (t.id === "TNK-A") dir.set(0.18, 0, 1).normalize();
-        cam.position.set(t.position[0] + dir.x * dist, cy + 0.4, t.position[2] + dir.z * dist);
-        cam.lookAt(t.position[0], cy, t.position[2]);
-        cam.updateMatrixWorld();
-        gl.setRenderTarget(null);
-        gl.render(scene, cam);
-        const src = gl.domElement;
-        const ar = 360 / 240;
-        let sw = src.width;
-        let sh = src.width / ar;
-        if (sh > src.height) {
-          sh = src.height;
-          sw = sh * ar;
-        }
-        ctx.drawImage(src, (src.width - sw) / 2, (src.height - sh) / 2, sw, sh, 0, 0, 360, 240);
-        out[t.id] = canvas.toDataURL("image/jpeg", 0.82);
-      }
-      gl.setRenderTarget(prevTarget);
-      setCaptures(out);
-    }, 2200);
-    return () => clearTimeout(id);
-  }, [gl, scene, size, setCaptures, mode]);
-  return null;
-}
-
 function Effects() {
   const quality = useAppStore((s) => s.quality);
   if (quality === "low") return null;
@@ -198,6 +146,53 @@ function Effects() {
       <SMAA />
     </EffectComposer>
   );
+}
+
+/**
+ * Compiles every scene shader before the first frame. With
+ * KHR_parallel_shader_compile the driver compiles them on worker threads, so the
+ * page stays responsive while the loader is up. Programs are compiled for the
+ * pipeline actually used: into the post-processing buffer (linear, no tone
+ * mapping), or straight to screen at Low quality.
+ */
+function Precompile({ onReady }: { onReady: () => void }) {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  useEffect(() => {
+    let live = true;
+    const finish = () => {
+      if (!live) return;
+      live = false;
+      onReady();
+    };
+    const target = useAppStore.getState().quality === "low" ? null : new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
+    const prev = gl.getRenderTarget();
+    gl.setRenderTarget(target);
+    const compiled = gl.compileAsync(scene, camera).catch(() => undefined);
+    gl.setRenderTarget(prev);
+    void compiled.then(() => {
+      target?.dispose();
+      finish();
+    });
+    // Never hold the scene back if a driver does not report completion.
+    const safety = setTimeout(finish, 20000);
+    return () => {
+      live = false;
+      clearTimeout(safety);
+    };
+  }, [gl, scene, camera, onReady]);
+  return null;
+}
+
+/** Reports once a few real frames have been drawn, so the loader can fade out. */
+function FirstFrames({ onShown }: { onShown: () => void }) {
+  const n = useRef(0);
+  useFrame(() => {
+    n.current++;
+    if (n.current === 3) onShown();
+  });
+  return null;
 }
 
 function SceneContents() {
@@ -221,7 +216,6 @@ function SceneContents() {
       </Selection>
       <CameraRig />
       <LabelProjector />
-      <HabitatCaptures />
     </>
   );
 }
@@ -242,6 +236,10 @@ export default function FacilityCanvas({ active }: { active: boolean }) {
   const select = useAppStore((s) => s.select);
   const down = useRef<{ x: number; y: number } | null>(null);
   const dpr = useMemo<[number, number]>(() => (quality === "high" ? [1, 1.75] : quality === "balanced" ? [1, 1.25] : [0.75, 1]), [quality]);
+  const [compiled, setCompiled] = useState(false);
+  const [shown, setShown] = useState(false);
+  const onCompiled = useCallback(() => setCompiled(true), []);
+  const onShown = useCallback(() => setShown(true), []);
 
   return (
     <div
@@ -252,7 +250,7 @@ export default function FacilityCanvas({ active }: { active: boolean }) {
     >
       <Canvas
         dpr={dpr}
-        frameloop={active ? "always" : "never"}
+        frameloop={active && compiled ? "always" : "never"}
         camera={{ fov: 42, near: 0.3, far: 400, position: [0, 7.4, 35] }}
         gl={{ antialias: true, powerPreference: "high-performance", alpha: false, stencil: false }}
         onCreated={({ gl, scene, camera, get }) => {
@@ -262,10 +260,15 @@ export default function FacilityCanvas({ active }: { active: boolean }) {
             get controls() {
               return get().controls;
             },
+            get gl() {
+              return get().gl;
+            },
           };
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.12;
           gl.localClippingEnabled = true;
+          // Shader error checks force synchronous round trips to the GPU; keep them for development only.
+          gl.debug.checkShaderErrors = process.env.NODE_ENV !== "production";
           // A context lost while the canvas is still mounted and not restored
           // shortly after means WebGL is unusable; fall back to the text view.
           const el = gl.domElement;
@@ -290,8 +293,11 @@ export default function FacilityCanvas({ active }: { active: boolean }) {
         <PerformanceMonitor onDecline={() => quality === "high" && setQuality("balanced")} flipflops={2} />
         <Suspense fallback={null}>
           <SceneContents />
+          {!compiled && <Precompile onReady={onCompiled} />}
+          {compiled && !shown && <FirstFrames onShown={onShown} />}
         </Suspense>
       </Canvas>
+      <SceneLoader step={compiled ? "Opening the doors…" : "Preparing water, glass and light…"} done={shown} />
     </div>
   );
 }

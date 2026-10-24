@@ -74,6 +74,9 @@ export const BUILDING = {
   columnRadius: 0.36,
 };
 
+/** Pre-rendered still of a habitat (scripts/capture-habitats.mjs). */
+export const habitatImage = (tankId: string) => `/habitats/${tankId}.jpg`;
+
 export const TANKS: TankConfig[] = [
   {
     id: "TNK-A",
