@@ -369,10 +369,11 @@ function buildScenery(t: TankConfig, waterH: number): { items: SceneryItem[]; bl
       }
       decorate(16, 8, 10, 10, 1.6);
       // Tall kelp swaying round the edge of the showcase.
-      for (let i = 0; i < 16; i++) {
+      // Low kelp tufts round the edge: colour and movement without hiding the fish.
+      for (let i = 0; i < 12; i++) {
         const [x, z] = polar(R - 1.2, R - 0.45);
         const color = pick(["#7a8f2b", "#9c7a2a", "#6b8e23", "#8aa13a"]);
-        for (let k = 0; k < 3; k++) blades.push([x + (r() - 0.5) * 0.3, z + (r() - 0.5) * 0.3, r() * 6.28, waterH * (0.22 + r() * 0.32), color, 3.2 + r() * 1.6]);
+        for (let k = 0; k < 3; k++) blades.push([x + (r() - 0.5) * 0.3, z + (r() - 0.5) * 0.3, r() * 6.28, 0.9 + r() * 1.3, color, 2.6 + r() * 1.4]);
       }
       break;
     }

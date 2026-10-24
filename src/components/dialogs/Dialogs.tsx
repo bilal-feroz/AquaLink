@@ -7,6 +7,7 @@ import { techName, workOrderText } from "@/lib/workflow/handover";
 import type { HandoverReport } from "@/lib/workflow/types";
 import { useAppStore } from "@/store/useAppStore";
 import { Button, Dialog, Kbd } from "@/components/ui/primitives";
+import { SettingsPanel } from "@/components/sections/SettingsView";
 
 function download(name: string, text: string, type = "text/markdown") {
   const blob = new Blob([text], { type });
@@ -226,7 +227,7 @@ function ShortcutsDialog() {
     <Dialog open={open} onClose={() => a.openDialog({ shortcuts: false })} title="Keyboard shortcuts">
       <ul className="space-y-1.5 text-[13px]">
         {[
-          ["1 / 2 / 3", "Public / Infrastructure / Incident view"],
+          ["1 / 2", "Public / Operations view"],
           ["T", "Accessible text view"],
           ["R", "Reset camera"],
           ["F", "Focus selected asset"],
@@ -250,9 +251,20 @@ function ShortcutsDialog() {
   );
 }
 
+function SettingsDialog() {
+  const open = useAppStore((s) => s.dialogs.settings);
+  const a = useAppStore.getState();
+  return (
+    <Dialog open={open} drawer onClose={() => a.openDialog({ settings: false })} title="Settings">
+      <SettingsPanel />
+    </Dialog>
+  );
+}
+
 export function Dialogs() {
   return (
     <>
+      <SettingsDialog />
       <HandoverDialog />
       <WorkOrderDialog />
       <ResetDialog />

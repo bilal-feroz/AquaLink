@@ -18,7 +18,7 @@ one 3D world, two ways to understand it:
 | Plant hall behind the atrium | Following a species |
 |---|---|
 | ![Plant hall](docs/screenshots/plant-hall.png) | ![Species follow](docs/screenshots/species-follow.png) |
-| Orbit 180° from the visitor view (or pick *Plant*) and the back wall cuts away to show the plant hall. | Click a species under its tank and the camera flies in and follows it through the glass. |
+| Orbit 180° from the visitor view and the back wall cuts away to show the plant hall. | Click a species under its tank and the camera flies in and follows it through the glass. |
 
 All operational data is **simulated** and labelled as such. AquaLink does not
 connect to, or operate, real equipment.
@@ -70,7 +70,7 @@ npm start
 
 1. **Public aquarium (0–15 s).** Start at `?scenario=baseline`. Orbit the atrium (drag), zoom (wheel). Under *Habitats & marine life*, click a species (for example Blacktip reef sharks under Tank A): the camera flies into the tank and follows it. Drag to let go.
 2. **Look behind the scenes (15–30 s).** Orbit 180°: the back wall cuts away and the plant hall sits behind the atrium. Press **2** for *Operations*: the whole building becomes a dollhouse with live flow in every pipe. Click Pump C-2 to trace what it feeds; everything else dims.
-3. **Trigger a failure (30–45 s).** In the *Scenario lab*, choose *Run scenario* on **Pump C-2 motor fault**. The camera swings round to the fault, a red wave runs down the pipes from C-2 and rings mark Tanks B and C. The engine fast-forwards the transient: low-flow alarm, auto-transfer to C-3, stable at 45 % / 50 %.
+3. **Trigger a failure (30–45 s).** Open the *Scenario lab* dropdown and press *Run* on **Pump C-2 motor fault**. The camera swings round to the fault, a red wave runs down the pipes from C-2 and rings mark Tanks B and C. The engine fast-forwards the transient: low-flow alarm, auto-transfer to C-3, stable at 45 % / 50 %.
 4. **Understand the incident (45–60 s).** The panel shows C-2's root cause (*motor overcurrent — confirmed by the simulated current signal*), the two affected tanks, backup coverage and recommended actions; the compact incident timeline sits bottom-left.
 5. **Take action (60–75 s).** Open *Tasks*: assign "Verify C-3 backup operation" to a technician, tick a checklist step, record a note, raise a simulated work order. Press **H** for the shift handover, generated from the current state.
 6. **Heal it (75–90 s).** Back in the Scenario lab, choose *Authorized C-2 restart*: green rings sweep C-2 and the tanks as circulation returns. Then try the second scenario, **Sand filter F-1 blockage**, and heal it with *Backwash F-1*.
@@ -104,17 +104,25 @@ longer for bigger moves. Grabbing the view stops a glide immediately.
 **Look and feel.** Frosted-glass panels over a soft aqua backdrop, glossy
 action buttons, and frosted-water controls over the 3D view with a lit aqua
 lens marking the active choice. The public view opens on a raised
-three-quarter view of the atrium with all six habitats in sight. Assets,
-Incidents, Tasks, Analytics and Settings share one plain layout: a title, one
-sentence on what the page is for, and the few controls it needs. The logo lives
+three-quarter view of the atrium with all six habitats in sight, and the atrium
+itself is dressed for visitors: glowing jellyfish lanterns floating in the void,
+a holographic manta circling over the entrance, benches and habitat info kiosks
+at every tank, planters, and vines trailing from the gallery decks (all of it
+scenery, hidden in Operations). Click any tank, pump, filter or valve and the
+camera flies to it. Assets, Incidents, Tasks and Analytics share one plain
+layout: a title, one sentence on what the page is for, and the few controls it
+needs. Settings (header gear) slides in as a side panel over whatever is on
+screen, so a change to graphics or motion shows straight away. The logo lives
 in `src/assets/aqualink-mark.png` (tab icons in `src/app/icon.png` and
 `apple-icon.png`).
 
-**Scenarios.** Two simulated failures, run from the *Scenario lab* under
-Facility status: **Pump C-2 motor fault** (Tanks B and C; healed by an authorised
+**Scenarios.** Two simulated failures, run from the *Scenario lab* dropdown
+under the compact Facility status card (or from Settings): **Pump C-2 motor fault** (Tanks B and C; healed by an authorised
 restart) and **Sand filter F-1 blockage** (Tanks A, D, E and F; healed by a
-backwash). Each tile shows its progress (trip or clog → alarm → backup or
-degraded → stable → healed). One scenario runs at a time.
+backwash). Each scenario is one row; while it runs it shows a progress bar
+naming the current step (trip or clog → alarm → backup or degraded → stable →
+healed) and its Skip and heal buttons, even with the dropdown closed. One
+scenario runs at a time.
 
 **Operations.** Facility status, network overview and flow distribution, a
 tabbed asset inspector (Overview · Live Data · Connections · History), asset

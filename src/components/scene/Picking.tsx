@@ -19,12 +19,9 @@ export function Picking({ layers, mode }: { layers: LayerState; mode: ViewMode }
   void mode;
 
   const handlers = (id: string) => ({
+    // One click selects the asset and flies the camera to it (a drag is an orbit, not a click).
     onClick: (e: ThreeEvent<MouseEvent>) => {
       if (e.delta > 4) return;
-      e.stopPropagation();
-      select(id);
-    },
-    onDoubleClick: (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
       select(id);
       window.dispatchEvent(new CustomEvent("aqualink:focus", { detail: id }));

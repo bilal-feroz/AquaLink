@@ -65,48 +65,49 @@ export function FacilityStatusPanel() {
 
   return (
     <div className="space-y-3">
-      <section
-        aria-labelledby="fs-title"
-        className={cls(
-          "glass overflow-hidden rounded-2xl",
-          issue ? "border-red-200/80 bg-gradient-to-br from-red-50/90 via-white/70 to-white/55" : "border-emerald-100/90 bg-gradient-to-br from-emerald-50/85 via-white/70 to-cyan-50/50",
-        )}
-      >
-        <header className="flex items-center justify-between px-4 pt-3.5">
-          <h3 id="fs-title" className="text-[13.5px] font-semibold text-ink">
-            Facility status
-          </h3>
-          <SimTag />
-        </header>
-        <div className="flex items-center gap-3 px-4 pt-2">
-          <span className={cls("btn-glossy grid size-11 place-items-center rounded-2xl text-white", issue ? "pulse-crit bg-crit" : "bg-ok")}>
-            {issue ? <TriangleAlert aria-hidden className="size-5" /> : <CircleCheck aria-hidden className="size-5" />}
+      <section aria-labelledby="fs-title" className={cls("glass overflow-hidden rounded-2xl", issue ? "border-red-200/80 bg-gradient-to-br from-red-50/90 via-white/70 to-white/55" : "border-emerald-100/90 bg-gradient-to-br from-emerald-50/80 via-white/70 to-cyan-50/50")}>
+        <div className="flex items-center gap-3 px-4 pt-3.5">
+          <span className={cls("btn-glossy grid size-9 shrink-0 place-items-center rounded-xl text-white", issue ? "pulse-crit bg-crit" : "bg-ok")}>
+            {issue ? <TriangleAlert aria-hidden className="size-[18px]" /> : <CircleCheck aria-hidden className="size-[18px]" />}
           </span>
-          <div className="min-w-0">
-            <div className={cls("text-[20px] leading-tight font-semibold tracking-tight", issue ? "text-crit" : "text-ok")}>{issue ? "Issue detected" : "All systems normal"}</div>
-            <p className="text-[12.5px] text-muted">
-              {k.affectedTankIds.length} {k.affectedTankIds.length === 1 ? "tank" : "tanks"} affected · {outOfRange.length === 0 ? "water quality within limits" : `${outOfRange.length} outside habitat limits`}
+          <div className="min-w-0 flex-1">
+            <h3 id="fs-title" className={cls("text-[15.5px] leading-tight font-semibold tracking-tight", issue ? "text-crit" : "text-ok")}>
+              <span className="sr-only">Facility status: </span>
+              {issue ? "Issue detected" : "All systems normal"}
+            </h3>
+            <p className="truncate text-[12px] text-muted">
+              {k.affectedTankIds.length === 0 ? "All tanks healthy" : `${k.affectedTankIds.length} ${k.affectedTankIds.length === 1 ? "tank" : "tanks"} affected`} · {outOfRange.length === 0 ? "water OK" : `${outOfRange.length} out of range`}
             </p>
           </div>
+          <div className="flex flex-col items-end gap-1">
+            <SimTag />
+            <div className="w-20">
+              <Sparkline values={trend.length > 1 ? trend : [100, 100]} min={0} max={100} height={18} color={issue ? "#d1242f" : "#16a34a"} label="Facility circulation trend" />
+            </div>
+          </div>
         </div>
-        <div className="px-4 pt-2">
-          <Sparkline values={trend.length > 1 ? trend : [100, 100]} min={0} max={100} height={34} color={issue ? "#d1242f" : "#16a34a"} label="Facility circulation trend" />
-        </div>
-        <div className="grid grid-cols-2 gap-2 px-4 pt-1 pb-4">
-          <Kpi icon={Waves} value={`${k.aggregateFlowDisplay}%`} label="Circulation" sub="equal-weighted mean" tint={k.aggregateFlowDisplay >= 90 ? "#16a34a" : "#d1242f"} />
-          <Kpi icon={Thermometer} value={`${k.avgTemp.toFixed(1)}°C`} label="Avg. temperature" tint="#e39a12" />
-          <Kpi icon={Droplets} value={k.meanPh.toFixed(2)} label="Mean pH" sub="indicative" tint="#0ea5c6" />
-          <Kpi icon={Gauge} value={`${k.availability.toFixed(1)}%`} label="Availability" sub="since 10:00" tint="#1d6fe0" />
-        </div>
+        <dl className="mx-3 mt-3 mb-3 grid grid-cols-4 divide-x divide-white/80 rounded-xl bg-white/55 py-2 ring-1 ring-white/80">
+          {[
+            { icon: Waves, label: "Circulation", value: `${k.aggregateFlowDisplay}%`, tint: k.aggregateFlowDisplay >= 90 ? "#16a34a" : "#d1242f" },
+            { icon: Thermometer, label: "Avg. temp", value: `${k.avgTemp.toFixed(1)}°`, tint: "#e39a12" },
+            { icon: Droplets, label: "Mean pH", value: k.meanPh.toFixed(2), tint: "#0ea5c6" },
+            { icon: Gauge, label: "Availability", value: `${k.availability.toFixed(0)}%`, tint: "#1d6fe0" },
+          ].map((m) => (
+            <div key={m.label} className="flex flex-col items-center px-1 text-center">
+              <dt className="flex items-center gap-1 text-[10.5px] text-muted">
+                <m.icon aria-hidden className="size-3" style={{ color: m.tint }} />
+                {m.label}
+              </dt>
+              <dd className="tabular text-[16px] leading-tight font-semibold text-ink">{m.value}</dd>
+            </div>
+          ))}
+        </dl>
         {inc && (
-          <button
-            onClick={() => setMode("operations")}
-            className="flex w-full items-center gap-3 border-t border-red-200 bg-red-50/70 px-4 py-3 text-left transition-colors hover:bg-red-100/70"
-          >
-            <ShieldAlert aria-hidden className="size-5 shrink-0 text-crit" />
+          <button onClick={() => setMode("operations")} className="flex w-full items-center gap-2.5 border-t border-red-200 bg-red-50/70 px-4 py-2.5 text-left transition-colors hover:bg-red-100/70">
+            <ShieldAlert aria-hidden className="size-4 shrink-0 text-crit" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-semibold text-ink">{inc.title}</span>
-              <span className="block text-[12px] text-muted">
+              <span className="block truncate text-[12.5px] font-semibold text-ink">{inc.title}</span>
+              <span className="block truncate text-[11.5px] text-muted">
                 {inc.affectedTankIds.map((id) => TANK_BY_ID[id].name).join(", ") || "Impact developing"} · open {duration(sim.t - inc.openedAt)}
               </span>
             </span>

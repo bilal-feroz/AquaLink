@@ -370,3 +370,19 @@ body {
     transform: translateY(-4px) rotate(-1.5deg);
   }
 }
+
+/* Side panels slide in from the right edge. */
+.drawer-in {
+  animation: drawer-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

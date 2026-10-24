@@ -531,7 +531,7 @@ function filterSensors(f: FilterConfig): SensorConfig[] {
 export const SENSORS: SensorConfig[] = [...TANKS.flatMap(tankSensors), ...PUMPS.flatMap(pumpSensors), ...FILTERS.flatMap(filterSensors)];
 
 export const TECHNICIANS: Technician[] = [
-  { id: "T-01", name: "Jamie Doyle", initials: "JD", role: "Shift lead, life support" },
+  { id: "T-01", name: "Director of Wet Things", initials: "DW", role: "Shift lead, life support" },
   { id: "T-02", name: "Priya Nair", initials: "PN", role: "Mechanical technician" },
   { id: "T-03", name: "Marcus Oyelaran", initials: "MO", role: "Electrical technician" },
   { id: "T-04", name: "Sofia Lind", initials: "SL", role: "Life-support operator" },

@@ -170,7 +170,24 @@ export function Kbd({ children }: { children: ReactNode }) {
 }
 
 /** Accessible modal dialog with focus trap and Escape to close. */
-export function Dialog({ open, onClose, title, children, wide, footer }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean; footer?: ReactNode }) {
+export function Dialog({
+  open,
+  onClose,
+  title,
+  children,
+  wide,
+  footer,
+  drawer,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  wide?: boolean;
+  footer?: ReactNode;
+  /** Slide in from the right as a full-height panel instead of a centred box. */
+  drawer?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
   useEffect(() => {
@@ -206,8 +223,20 @@ export function Dialog({ open, onClose, title, children, wide, footer }: { open:
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cls("glass fade-in flex max-h-[88vh] w-full flex-col overflow-hidden rounded-2xl bg-white/90 shadow-2xl", wide ? "max-w-3xl" : "max-w-lg")}>
+    <div
+      className={cls("fixed inset-0 z-50 flex bg-slate-900/40 backdrop-blur-[2px]", drawer ? "justify-end bg-slate-900/25 p-3" : "items-center justify-center p-4")}
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={cls(
+          "glass flex w-full flex-col overflow-hidden rounded-2xl shadow-2xl",
+          drawer ? "drawer-in h-full max-w-[440px] bg-white/85" : cls("fade-in max-h-[88vh] bg-white/90", wide ? "max-w-3xl" : "max-w-lg"),
+        )}
+      >
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
           <h2 id={titleId} className="text-base font-semibold text-ink">
             {title}

@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, Filter, FlaskConical, HeartPulse, Pause, Play, RotateCcw, SkipForward, Zap } from "lucide-react";
+import { ChevronDown, Filter, FlaskConical, HeartPulse, Pause, Play, RotateCcw, SkipForward, Zap } from "lucide-react";
+import { useState } from "react";
 import { clock, cls } from "@/lib/format";
 import { activeIncidents, type IncidentRuntime, type SimState } from "@/lib/simulation/engine";
 import { SCENARIOS, type ScenarioDef } from "@/lib/simulation/scenario";
@@ -32,74 +33,87 @@ function stepsFor(def: ScenarioDef, sim: SimState, inc?: IncidentRuntime): Step[
   ];
 }
 
+function scenarioState(def: ScenarioDef, sim: SimState) {
+  const inc = [...sim.incidents].reverse().find((i) => i.rootAssetId === def.rootAssetId);
+  const live = !!inc && inc.status !== "resolved";
+  const building = !inc && ((sim.filters?.[def.rootAssetId]?.clogTarget ?? 0) > 0 || sim.pumps[def.rootAssetId]?.mode === "tripping");
+  const running = live || building;
+  return { inc, live, running, healed: inc?.status === "resolved" && !running };
+}
+
+/** One scenario as a compact row; it grows a progress line and actions only while it runs. */
 function ScenarioTile({ def }: { def: ScenarioDef }) {
   const sim = useAppStore((s) => s.sim);
   const a = useAppStore.getState();
   const active = activeIncidents(sim);
-  const inc = [...sim.incidents].reverse().find((i) => i.rootAssetId === def.rootAssetId);
-  const live = inc && inc.status !== "resolved";
-  const building = !inc && ((sim.filters?.[def.rootAssetId]?.clogTarget ?? 0) > 0 || sim.pumps[def.rootAssetId]?.mode === "tripping");
-  const running = !!live || building;
-  const healed = inc?.status === "resolved" && !running;
+  const { inc, live, running, healed } = scenarioState(def, sim);
   const otherRunning = !running && (active.length > 0 || Object.values(sim.filters ?? {}).some((f) => f.clogTarget > 0 && !f.backwashing));
   const steps = stepsFor(def, sim, inc && (live || healed) ? inc : undefined);
+  const doneSteps = steps.filter((s) => s.done).length;
+  const stepNow = [...steps].reverse().find((s) => s.done);
   const Icon = def.id === "pump-c2" ? Zap : Filter;
   const canHeal = live && inc?.status === "active";
   const canSkip = live && !inc?.stabilizedAt && inc?.status === "active";
 
   return (
-    <div className={cls("rounded-xl border p-3 transition-colors", running ? "border-red-200/90 bg-gradient-to-br from-red-50/95 to-white/70" : healed ? "border-emerald-200/90 bg-gradient-to-br from-emerald-50/95 to-white/70" : "glass-tile")}>
-      <div className="flex items-start gap-3">
-        <span className={cls("grid size-9 shrink-0 place-items-center rounded-lg", running ? "btn-glossy bg-crit text-white" : healed ? "btn-glossy bg-ok text-white" : "bg-gradient-to-b from-sky-50 to-cyan-100/70 text-cyan-700 ring-1 ring-white")}>
-          <Icon aria-hidden className="size-4.5" />
+    <div title={def.summary} className={cls("rounded-xl px-2.5 py-2 transition-colors", running ? "bg-red-50/90 ring-1 ring-red-200/90" : healed ? "bg-emerald-50/90 ring-1 ring-emerald-200/90" : "glass-tile")}>
+      <div className="flex items-center gap-2.5">
+        <span className={cls("grid size-8 shrink-0 place-items-center rounded-lg", running ? "btn-glossy bg-crit text-white" : healed ? "btn-glossy bg-ok text-white" : "bg-gradient-to-b from-sky-50 to-cyan-100/70 text-cyan-700 ring-1 ring-white")}>
+          <Icon aria-hidden className="size-4" />
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[13.5px] font-semibold text-ink">{def.title}</span>
-            {running && <span className="pulse-crit rounded-full bg-crit px-1.5 py-px text-[10px] font-bold text-white uppercase">Live</span>}
-            {healed && <span className="rounded-full bg-ok-bg px-1.5 py-px text-[10px] font-bold text-ok uppercase">Healed</span>}
-          </div>
-          <p className="mt-0.5 text-[12px] leading-snug text-muted">{def.summary}</p>
-          <p className="mt-1 text-[11.5px] text-ink-2">
-            <span className="font-medium">Affects:</span> {def.affects}
-          </p>
-        </div>
-      </div>
-
-      {(running || healed) && (
-        <ol aria-label={`${def.title} progress`} className="mt-3 grid grid-cols-5 gap-1">
-          {steps.map((st, i) => (
-            <li key={st.label} className="flex flex-col items-center gap-1">
-              <span className={cls("h-1.5 w-full rounded-full", st.done ? (i === steps.length - 1 ? "bg-ok" : "bg-crit") : "bg-slate-200")} />
-              <span className={cls("text-[10px] leading-tight", st.done ? "font-semibold text-ink" : "text-subtle")}>{st.label}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-
-      <div className="mt-3 flex flex-wrap gap-1.5">
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5">
+            <span className="truncate text-[13px] font-semibold text-ink">{def.title}</span>
+            {running && <span className="pulse-crit shrink-0 rounded-full bg-crit px-1.5 text-[9.5px] leading-4 font-bold text-white uppercase">Live</span>}
+            {healed && <span className="shrink-0 rounded-full bg-ok-bg px-1.5 text-[9.5px] leading-4 font-bold text-ok uppercase">Healed</span>}
+          </span>
+          <span className="block truncate text-[11.5px] text-muted">{def.affects}</span>
+        </span>
         {!running && (
           <button
             disabled={otherRunning}
+            title={otherRunning ? "One scenario at a time" : undefined}
+            aria-label={`${healed ? "Run scenario again" : "Run scenario"}: ${def.title}`}
             onClick={() => a.runScenario(def.id)}
-            className="btn-glossy inline-flex h-8 items-center gap-1.5 rounded-lg bg-crit px-3 text-[12.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn-glossy inline-flex h-7 shrink-0 items-center gap-1 rounded-lg bg-crit px-2.5 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-35"
           >
-            <Play aria-hidden className="size-3.5" /> {healed ? "Run again" : "Run scenario"}
+            <Play aria-hidden className="size-3" /> {healed ? "Again" : "Run"}
           </button>
         )}
-        {canSkip && (
-          <button onClick={a.stabilize} className="glass-btn inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-medium">
-            <SkipForward aria-hidden className="size-3.5" /> Skip to stable
-          </button>
-        )}
-        {canHeal && (
-          <button onClick={a.recover} className="btn-glossy inline-flex h-8 items-center gap-1.5 rounded-lg bg-ok px-3 text-[12.5px] font-semibold text-white">
-            <HeartPulse aria-hidden className="size-3.5" /> {def.heal}
-          </button>
-        )}
-        {live && inc?.status === "recovering" && <span className="inline-flex h-8 items-center gap-1.5 text-[12.5px] font-medium text-ok">Healing… circulation returning</span>}
-        {otherRunning && <span className="inline-flex h-8 items-center text-[11.5px] text-subtle">One scenario at a time</span>}
       </div>
+
+      {(running || healed) && (
+        <div className="mt-2 pl-[42px]">
+          <div className="flex items-center gap-2">
+            <span
+              role="progressbar"
+              aria-label={`${def.title} progress`}
+              aria-valuemin={0}
+              aria-valuemax={steps.length}
+              aria-valuenow={doneSteps}
+              className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-white ring-1 ring-black/5"
+            >
+              <span className={cls("absolute inset-y-0 left-0 rounded-full transition-[width] duration-500", healed ? "bg-ok" : "bg-gradient-to-r from-red-500 to-amber-400")} style={{ width: `${(doneSteps / steps.length) * 100}%` }} />
+            </span>
+            <span className="shrink-0 text-[11px] font-medium text-ink-2">{stepNow ? stepNow.label : "Starting"}</span>
+          </div>
+          {(canSkip || canHeal || inc?.status === "recovering") && (
+            <div className="mt-2 flex items-center justify-end gap-1.5">
+              {inc?.status === "recovering" && <span className="mr-auto text-[11.5px] font-medium text-ok">Healing… flow returning</span>}
+              {canSkip && (
+                <button onClick={a.stabilize} className="glass-btn inline-flex h-7 items-center gap-1 rounded-lg px-2 text-[12px] font-medium">
+                  <SkipForward aria-hidden className="size-3" /> Skip
+                </button>
+              )}
+              {canHeal && (
+                <button onClick={a.recover} className="btn-glossy inline-flex h-7 items-center gap-1 rounded-lg bg-ok px-2.5 text-[12px] font-semibold text-white">
+                  <HeartPulse aria-hidden className="size-3.5" /> {def.heal}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -110,52 +124,67 @@ export function ScenarioCard() {
   const playing = useAppStore((s) => s.playing);
   const ff = useAppStore((s) => s.fastForwarding);
   const a = useAppStore.getState();
+  const [open, setOpen] = useState(false);
+  // A running (or just healed) scenario stays on show even when the lab is closed.
+  const current = SCENARIOS.find((d) => scenarioState(d, sim).running) ?? SCENARIOS.find((d) => scenarioState(d, sim).healed && sim.t - (scenarioState(d, sim).inc?.resolvedAt ?? 0) < 45);
+  const currentRunning = !!current && scenarioState(current, sim).running;
   return (
     <section aria-labelledby="scenario-title" className="glass overflow-hidden rounded-2xl">
-      <header className="water-header px-4 pt-3 pb-2.5 text-white">
-        <div className="flex items-center justify-between gap-2">
-          <h3 id="scenario-title" className="flex items-center gap-2 text-[13.5px] font-semibold whitespace-nowrap">
-            <FlaskConical aria-hidden className="size-4 text-sky-300" /> Scenario lab
-          </h3>
-          <span className="rounded border border-white/25 px-1.5 py-px text-[9.5px] font-bold tracking-wide text-white/70 uppercase">Simulated</span>
-        </div>
-        <div className="mt-2 flex items-center gap-1 rounded-lg bg-white/10 p-1 ring-1 ring-white/10">
-          <span className="tabular mr-auto pl-1.5 text-[12px] text-white/80">{clock(sim.t)}</span>
-          <button aria-label={playing ? "Pause simulation" : "Resume simulation"} onClick={a.togglePlaying} className="grid size-7 place-items-center rounded-md hover:bg-white/10">
-            {playing ? <Pause aria-hidden className="size-3.5" /> : <Play aria-hidden className="size-3.5" />}
+      <header className="water-header flex items-center gap-2 px-3 py-2 text-white">
+        <button onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="scenario-body" className="group flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1 pr-1 text-left">
+          <FlaskConical aria-hidden className="size-4 shrink-0 text-sky-300" />
+          <span id="scenario-title" className="text-[13.5px] font-semibold whitespace-nowrap">
+            Scenario lab
+          </span>
+          {currentRunning ? (
+            <span aria-label="Scenario running" className="pulse-crit size-2 shrink-0 rounded-full bg-red-400" />
+          ) : (
+            <span aria-label={`${SCENARIOS.length} scenarios`} className="grid size-5 shrink-0 place-items-center rounded-full bg-white/15 text-[10.5px] font-semibold">
+              {SCENARIOS.length}
+            </span>
+          )}
+          <ChevronDown aria-hidden className={cls("ml-auto size-4 shrink-0 text-white/80 transition-transform duration-300 group-hover:text-white", open && "rotate-180")} />
+        </button>
+        <div className="flex shrink-0 items-center gap-0.5 rounded-lg bg-white/10 p-0.5 ring-1 ring-white/10" title="Simulated time">
+          <span className="tabular px-1.5 text-[11.5px] text-white/80">{clock(sim.t)}</span>
+          <button aria-label={playing ? "Pause simulation" : "Resume simulation"} onClick={a.togglePlaying} className="grid size-6 place-items-center rounded-md hover:bg-white/10">
+            {playing ? <Pause aria-hidden className="size-3" /> : <Play aria-hidden className="size-3" />}
           </button>
           {[1, 10, 60].map((v) => (
             <button
               key={v}
               aria-pressed={playing && speed === v}
               onClick={() => a.setSpeed(v)}
-              className={cls("tabular h-7 rounded-md px-1.5 text-[11.5px] font-semibold", playing && speed === v ? "bg-white text-ink" : "text-white/75 hover:bg-white/10")}
+              className={cls("tabular h-6 rounded-md px-1.5 text-[11px] font-semibold", playing && speed === v ? "bg-white text-ink" : "text-white/75 hover:bg-white/10")}
             >
               {v}×
             </button>
           ))}
-          {ff && playing && <span className="px-1 text-[10.5px] font-bold text-amber-300">▸▸ 20×</span>}
+          {ff && playing && <span className="px-1 text-[10px] font-bold text-amber-300">20×</span>}
         </div>
       </header>
-      <div className="space-y-2 p-3">
+      {!open && current && (
+        <div className="p-2">
+          <ScenarioTile def={current} />
+        </div>
+      )}
+      <div id="scenario-body" hidden={!open} className="fade-in space-y-1.5 p-2">
         {SCENARIOS.map((d) => (
           <ScenarioTile key={d.id} def={d} />
         ))}
-        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-          <span className="text-[11px] font-semibold text-subtle uppercase">Presets</span>
-          <button className="glass-btn rounded-md px-2 py-1 text-[11.5px] font-medium" onClick={() => a.loadPreset("incident")}>
-            Pump fault @ 10:24
+        <div className="flex items-center gap-1 px-0.5 pt-0.5 text-[11.5px]">
+          <span className="text-subtle">Jump to</span>
+          <button className="rounded-md px-1.5 py-1 font-medium text-brand hover:bg-white/80" onClick={() => a.loadPreset("incident")}>
+            Pump fault
           </button>
-          <button className="glass-btn rounded-md px-2 py-1 text-[11.5px] font-medium" onClick={() => a.loadPreset("filter")}>
-            Filter clog @ 10:20
+          <span aria-hidden className="text-subtle">·</span>
+          <button className="rounded-md px-1.5 py-1 font-medium text-brand hover:bg-white/80" onClick={() => a.loadPreset("filter")}>
+            Filter clog
           </button>
-          <button className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11.5px] font-medium text-muted hover:bg-slate-100 hover:text-ink" onClick={() => a.openDialog({ resetConfirm: true })}>
+          <button className="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-1 font-medium text-muted hover:bg-white/80 hover:text-ink" onClick={() => a.openDialog({ resetConfirm: true })}>
             <RotateCcw aria-hidden className="size-3" /> Reset
           </button>
         </div>
-        <p className="flex items-center gap-1.5 text-[11px] text-subtle">
-          <Check aria-hidden className="size-3" /> Transients fast-forward at 20×, then return to your speed.
-        </p>
       </div>
     </section>
   );

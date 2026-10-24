@@ -390,6 +390,51 @@ export function starfishGeometry(seed: number) {
   return prep(g, 0);
 }
 
+/** Jellyfish lantern: domed bell (part 0), trailing tentacles (part 1) and frilly oral arms (part 2). Rim at y = 0. */
+export function jellyGeometry() {
+  const r = rng(404);
+  const parts: THREE.BufferGeometry[] = [];
+  const bell = new THREE.SphereGeometry(1, 28, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
+  bell.scale(1, 0.72, 1);
+  parts.push(prep(bell, 0));
+  const skirt = new THREE.CylinderGeometry(1, 0.9, 0.16, 28, 1, true);
+  skirt.translate(0, -0.08, 0);
+  parts.push(prep(skirt, 0));
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 + r() * 0.2;
+    const len = 1.8 + r() * 1.2;
+    const t = new THREE.PlaneGeometry(0.035, len, 1, 10);
+    t.translate(0, -len / 2, 0);
+    t.rotateY(-a + Math.PI / 2);
+    t.translate(Math.cos(a) * 0.86, -0.1, Math.sin(a) * 0.86);
+    parts.push(prep(t, 1));
+  }
+  for (let i = 0; i < 4; i++) {
+    const len = 1.2 + r() * 0.5;
+    const arm = new THREE.PlaneGeometry(0.2, len, 1, 10);
+    arm.translate(0, -len / 2, 0);
+    arm.rotateY((i / 4) * Math.PI);
+    arm.translate(0, -0.05, 0);
+    parts.push(prep(arm, 2));
+  }
+  return merge(parts);
+}
+
+/** Rounded leafy bush made of overlapping blobs, sitting on y = 0. */
+export function bushGeometry(seed: number) {
+  const r = rng(seed);
+  const parts: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 6; i++) {
+    const s = 0.35 + r() * 0.3;
+    const blob = new THREE.IcosahedronGeometry(s, 1);
+    const a = r() * Math.PI * 2;
+    const d = i === 0 ? 0 : 0.25 + r() * 0.2;
+    blob.translate(Math.cos(a) * d, s * 0.8 + (i === 0 ? 0.25 : r() * 0.3), Math.sin(a) * d);
+    parts.push(prep(blob, 0));
+  }
+  return merge(parts);
+}
+
 export function bladeGeometry() {
   const g = new THREE.PlaneGeometry(0.07, 1, 1, 6);
   g.translate(0, 0.5, 0);

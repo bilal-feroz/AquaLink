@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BUILDING, TANKS } from "@/lib/data/facility";
 import { PLANTERS } from "./Architecture";
+import { ATRIUM_OBSTACLES } from "./Atrium";
 import { personGeometry, rng } from "./geometry";
 import { sceneFx } from "./sceneFx";
 import { visitorMaterial } from "./shaders";
@@ -60,6 +61,7 @@ const OBSTACLES: Obstacle[] = [
   ...TANKS.map((t) => ({ x: t.position[0], z: t.position[2], r: t.radius + 0.75, y: t.position[1] })),
   ...BUILDING.columns.flatMap(([x, z]) => [0, 6, 12].map((y) => ({ x, z, r: 0.75, y }))),
   ...PLANTERS.map(([x, y, z]) => ({ x, z, r: 0.95, y })),
+  ...ATRIUM_OBSTACLES,
   // Escalator footprints approximated by circles.
   ...[2.6, 5.1, 7.6, 10.1, 12.5].flatMap((z) => [
     { x: -19.5, z, r: 1.0, y: 0 },

@@ -10,6 +10,7 @@ import { TANKS } from "@/lib/data/facility";
 import { activeIncidents } from "@/lib/simulation/engine";
 import { effectiveReducedMotion, useAppStore } from "@/store/useAppStore";
 import { Architecture, PlantRoom } from "./Architecture";
+import { Atrium } from "./Atrium";
 import { CameraRig } from "./CameraRig";
 import { Equipment } from "./Equipment";
 import { FaultEffects } from "./FaultEffects";
@@ -207,6 +208,7 @@ function SceneContents() {
       <SceneEnvironment />
       <Selection>
         <Architecture />
+        <Atrium />
         <Habitats />
         <Visitors visible={layers.visitors} />
         <Engineering />

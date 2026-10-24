@@ -43,8 +43,7 @@ export function Logo() {
 export function Header() {
   const sim = useAppStore((s) => s.sim);
   const setMode = useAppStore((s) => s.setMode);
-  const setSection = useAppStore((s) => s.setSection);
-  const section = useAppStore((s) => s.section);
+  const settingsOpen = useAppStore((s) => s.dialogs.settings);
   const openDialog = useAppStore((s) => s.openDialog);
   const fastForwarding = useAppStore((s) => s.fastForwarding);
   const playing = useAppStore((s) => s.playing);
@@ -127,9 +126,9 @@ export function Header() {
 
         <button
           aria-label="Settings"
-          aria-current={section === "settings" ? "page" : undefined}
-          onClick={() => setSection("settings")}
-          className={cls("grid size-9 place-items-center rounded-lg transition-colors", section === "settings" ? "glass-tile text-brand" : "text-ink-2 hover:bg-white/70")}
+          aria-expanded={settingsOpen}
+          onClick={() => openDialog({ settings: true })}
+          className={cls("grid size-9 place-items-center rounded-lg transition-colors", settingsOpen ? "glass-tile text-brand" : "text-ink-2 hover:bg-white/70")}
         >
           <Settings aria-hidden className="size-[18px]" />
         </button>

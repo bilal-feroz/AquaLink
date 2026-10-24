@@ -6,7 +6,7 @@ import { SceneLabels } from "@/components/scene/SceneLabels";
 import { useAppStore } from "@/store/useAppStore";
 import { SceneLoader } from "./SceneLoader";
 import { TextView } from "./TextView";
-import { FloorSelector, FlowLegend, FollowBadge, IncidentTimelineOverlay, ModeSwitcher, ViewerButtons, ViewerControls } from "./ViewerOverlays";
+import { FlowLegend, FollowBadge, IncidentTimelineOverlay, ModeSwitcher, ViewerButtons, ViewerControls } from "./ViewerOverlays";
 
 const FacilityCanvas = dynamic(() => import("@/components/scene/FacilityCanvas"), {
   ssr: false,
@@ -75,9 +75,8 @@ export function Viewer({ active }: { active: boolean }) {
                   <FlowLegend />
                 </div>
               )}
-              <div className="pointer-events-auto shrink-0">
-                <FloorSelector />
-              </div>
+              {/* Keeps the legend centred now the floor picker is gone. */}
+              <div aria-hidden className="w-[120px] shrink-0" />
             </div>
           </div>
         )}

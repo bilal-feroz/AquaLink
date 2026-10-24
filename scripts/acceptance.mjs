@@ -74,8 +74,10 @@ await page.waitForTimeout(3000);
 {
   await page.keyboard.press("1");
   await page.waitForTimeout(600);
-  // The Scenario lab sits under Facility status; the pump scenario is the first tile.
-  await page.locator('section[aria-labelledby="scenario-title"]').getByRole("button", { name: "Run scenario" }).first().click();
+  // The Scenario lab sits under Facility status as a dropdown; the pump scenario is the first tile.
+  const lab = page.locator('section[aria-labelledby="scenario-title"]');
+  await lab.locator('button[aria-controls="scenario-body"]').click();
+  await lab.getByRole("button", { name: "Run scenario" }).first().click();
   await page.waitForTimeout(400);
   // Let the transient run (auto fast-forward), then jump to stabilization.
   await page.waitForTimeout(2500);
@@ -271,9 +273,16 @@ await page.waitForTimeout(3000);
   ];
   const navOk = [];
   for (const [name, heading] of sections) {
-    // Settings lives in the header; everything else in the main navigation rail.
-    if (name === "Settings") await page.getByRole("banner").getByRole("button", { name: "Settings", exact: true }).click();
-    else await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: new RegExp(`^${name}`) }).click();
+    // Settings opens as a side panel from the header; everything else is a page in the main navigation rail.
+    if (name === "Settings") {
+      await page.getByRole("banner").getByRole("button", { name: "Settings", exact: true }).click();
+      await page.waitForTimeout(500);
+      navOk.push(await page.getByRole("dialog", { name: "Settings" }).isVisible());
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(300);
+      continue;
+    }
+    await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: new RegExp(`^${name}`) }).click();
     await page.waitForTimeout(500);
     if (heading) navOk.push((await page.locator("main h1").first().innerText()).includes(heading));
   }

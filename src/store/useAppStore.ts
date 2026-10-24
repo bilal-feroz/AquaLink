@@ -77,6 +77,7 @@ interface Dialogs {
   workOrderId: string | null;
   resetConfirm: boolean;
   shortcuts: boolean;
+  settings: boolean;
 }
 
 export interface AppState {
@@ -262,7 +263,7 @@ export const useAppStore = create<AppState>()(
         follow: null,
         pulse: null,
         toasts: [],
-        dialogs: { handover: false, workOrderId: null, resetConfirm: false, shortcuts: false },
+        dialogs: { handover: false, workOrderId: null, resetConfirm: false, shortcuts: false, settings: false },
         webglFailed: false,
 
         ...emptyWorkflow(),
@@ -383,7 +384,8 @@ export const useAppStore = create<AppState>()(
           publish({ live: false });
         },
 
-        setSection: (section) => set({ section }),
+        // Settings is a side panel over the current page, not a page of its own.
+        setSection: (section) => (section === "settings" ? set({ dialogs: { ...get().dialogs, settings: true } }) : set({ section })),
 
         setMode: (mode) => {
           const { selectedId, sim } = get();

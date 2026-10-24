@@ -2,12 +2,10 @@
 
 import { Activity, ChevronDown, Fish, Focus, Layers, LocateFixed, Maximize2, Minimize2, Minus, Plus, Table2, Users, X, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { FLOORS } from "@/lib/data/facility";
 import { cls, hm } from "@/lib/format";
 import { activeIncidents, type SimEvent } from "@/lib/simulation/engine";
 import { FLOW_VISUAL_HEX } from "@/lib/status";
 import { TANK_BY_ID } from "@/lib/topology/graph";
-import type { FloorId } from "@/lib/types";
 import { useAppStore, type LayerKey, type ViewMode } from "@/store/useAppStore";
 import { usePopover } from "@/components/layout/Header";
 
@@ -185,65 +183,6 @@ export function ViewerControls() {
             <LayerToggles compact />
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function BuildingGlyph({ level }: { level: FloorId | null }) {
-  const levels: { id: FloorId; y: number; x: number }[] = [
-    { id: "L3", y: 6, x: 0 },
-    { id: "L2", y: 20, x: 0 },
-    { id: "L1", y: 34, x: 0 },
-    { id: "PL", y: 34, x: 26 },
-  ];
-  return (
-    <svg viewBox="0 0 132 62" className="h-[62px] w-[132px]" aria-hidden>
-      {levels.map((l) => {
-        const on = level === l.id;
-        return (
-          <g key={l.id} transform={`translate(${l.x} ${l.y})`}>
-            <path
-              d={l.id === "PL" ? "M66 8 L94 3 L122 8 L94 13 Z" : "M8 8 L48 0 L88 8 L48 16 Z"}
-              fill={on ? "rgba(96,165,250,0.45)" : "rgba(255,255,255,0.06)"}
-              stroke={on ? "#93c5fd" : "rgba(255,255,255,0.35)"}
-              strokeWidth="1"
-            />
-          </g>
-        );
-      })}
-      <circle cx="48" cy="28" r="5" fill="none" stroke="rgba(125,211,252,0.8)" strokeWidth="1.2" />
-      <text x="110" y="56" fontSize="7" fill="rgba(255,255,255,0.45)" textAnchor="middle">
-        plant
-      </text>
-    </svg>
-  );
-}
-
-export function FloorSelector() {
-  const level = useAppStore((s) => s.level);
-  const setLevel = useAppStore((s) => s.setLevel);
-  return (
-    <div className="scene-chip flex items-center gap-2 rounded-xl p-2 shadow-lg">
-      <div className="hidden xl:block">
-        <BuildingGlyph level={level} />
-      </div>
-      <div role="radiogroup" aria-label="Focus level" className="flex flex-col gap-0.5">
-        {FLOORS.map((f) => {
-          const on = level === f.id;
-          return (
-            <button
-              key={f.id}
-              role="radio"
-              aria-checked={on}
-              title={f.name}
-              onClick={() => setLevel(on ? null : f.id)}
-              className={cls("h-7 min-w-10 rounded-md px-1.5 text-[12px] font-semibold transition-colors", on ? "glass-active" : "text-white/80 hover:bg-white/10")}
-            >
-              {f.id === "PL" ? "Plant" : f.id}
-            </button>
-          );
-        })}
       </div>
     </div>
   );

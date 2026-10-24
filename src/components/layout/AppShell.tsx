@@ -12,7 +12,6 @@ import { Dialogs } from "@/components/dialogs/Dialogs";
 import { AnalyticsView } from "@/components/sections/AnalyticsView";
 import { AssetsView } from "@/components/sections/AssetsView";
 import { IncidentsView } from "@/components/sections/IncidentsView";
-import { SettingsView } from "@/components/sections/SettingsView";
 import { TasksView } from "@/components/sections/TasksView";
 import { Header } from "./Header";
 import { LeftRail } from "./LeftRail";
@@ -151,7 +150,8 @@ export function AppShell() {
   useShortcuts();
   const section = useAppStore((s) => s.section);
   const reduced = useAppStore(effectiveReducedMotion);
-  const facility = section === "facility";
+  // An older saved "settings" section falls back to the facility view (settings is now a side panel).
+  const facility = section === "facility" || section === "settings";
 
   return (
     <div className="flex h-dvh flex-col" data-reduced-motion={reduced ? "true" : "false"}>
@@ -172,7 +172,6 @@ export function AppShell() {
               {section === "incidents" && <IncidentsView />}
               {section === "tasks" && <TasksView />}
               {section === "analytics" && <AnalyticsView />}
-              {section === "settings" && <SettingsView />}
             </div>
           )}
         </main>
