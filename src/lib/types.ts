@@ -7,7 +7,7 @@
 
 export type Vec3 = [number, number, number];
 
-export type FloorId = "B1" | "L1" | "L2" | "L3";
+export type FloorId = "PL" | "L1" | "L2" | "L3";
 
 export type AssetKind = "tank" | "pump" | "filter" | "valve" | "junction" | "sensor" | "pipe";
 
@@ -103,6 +103,8 @@ export interface FilterConfig {
   height: number;
   media: string;
   loopId: string;
+  /** Clean-bed throughput limit, m³/h. */
+  capacity: number;
 }
 
 export type ValveType = "isolation" | "balancing" | "auto-transfer" | "check";

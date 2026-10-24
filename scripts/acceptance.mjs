@@ -48,7 +48,7 @@ await page.waitForTimeout(3000);
       return out;
     });
   const snaps = [];
-  for (const key of ["1", "2", "3", "1"]) {
+  for (const key of ["1", "2", "1", "3"]) {
     await page.keyboard.press(key);
     await page.waitForTimeout(1500);
     snaps.push({ mode: (await state()).mode, pos: await positions() });
@@ -57,7 +57,7 @@ await page.waitForTimeout(3000);
   const same = snaps.every((s) => JSON.stringify(s.pos) === ref);
   const count = Object.keys(snaps[0].pos).length;
   const modes = snaps.map((s) => s.mode).join(",");
-  record("T1", "Shared scene: tank IDs and positions identical across modes", same && count === 6 && modes === "public,infrastructure,incident,public", `${count} tanks, modes ${modes}`);
+  record("T1", "Shared scene: tank IDs and positions identical across modes", same && count === 6 && modes === "public,operations,public,operations", `${count} tanks, modes ${modes}`);
 }
 
 // ---------------------------------------------------------------- Test 2
@@ -72,10 +72,11 @@ await page.waitForTimeout(3000);
 
 // ---------------------------------------------------------------- Test 3 (via the UI)
 {
-  await page.getByRole("button", { name: "Scenario", exact: false }).first().click();
-  await page.getByText("Simulate C-2 failure").click();
+  await page.keyboard.press("1");
+  await page.waitForTimeout(600);
+  // The Scenario lab sits under Facility status; the pump scenario is the first tile.
+  await page.locator('section[aria-labelledby="scenario-title"]').getByRole("button", { name: "Run scenario" }).first().click();
   await page.waitForTimeout(400);
-  await page.getByRole("button", { name: "Scenario", exact: false }).first().click().catch(() => {});
   // Let the transient run (auto fast-forward), then jump to stabilization.
   await page.waitForTimeout(2500);
   await act("stabilize");
@@ -91,18 +92,20 @@ await page.waitForTimeout(3000);
   const checks = [];
   for (const [key, mode] of [
     ["1", "public"],
-    ["2", "infrastructure"],
-    ["3", "incident"],
+    ["2", "operations"],
   ]) {
     await act("select", null);
     await page.keyboard.press(key);
     await page.waitForTimeout(1200);
+    // Operations opens on the incident's root asset; clear it to read the network overview.
+    await act("select", null);
+    await page.waitForTimeout(300);
     const b = await page.locator('[aria-label="3D facility labels"] button[aria-label^="Tank B,"]').innerText();
     const c = await page.locator('[aria-label="3D facility labels"] button[aria-label^="Tank C,"]').innerText();
     const panel = await page.locator('aside[aria-label="Details"]').innerText();
     const okB = b.includes("45%");
     const okC = c.includes("50%");
-    const okPanel = mode === "public" ? panel.includes("2 tanks affected") : mode === "infrastructure" ? panel.includes("45%") && panel.includes("50%") : panel.includes("Tank B") && panel.includes("Tank C");
+    const okPanel = mode === "public" ? panel.includes("2 tanks affected") : panel.includes("45%") && panel.includes("50%") && panel.includes("Tank B") && panel.includes("Tank C");
     checks.push(`${mode}:${okB && okC && okPanel ? "ok" : `B=${okB} C=${okC} panel=${okPanel}`}`);
     await shot(`t4-${mode}`);
   }
@@ -117,6 +120,8 @@ await page.waitForTimeout(3000);
   await act("select", null);
   await page.keyboard.press("2");
   await page.waitForTimeout(1000);
+  await act("select", null);
+  await page.waitForTimeout(300);
   const lbl = await page.locator('[aria-label="3D facility labels"] button[aria-label^="Circulation Pump C-3"]').innerText();
   const v301 = s.sim.valves["V-301"].open;
   record("T5", "Backup activation consistent (state, valve, label, timeline)", c3.mode === "running" && c3.covering && Math.abs(c3.output - 0.6) < 1e-9 && v301 === 1 && !!ev && lbl.includes("Backup (60%)"), `C-3 ${c3.mode} ${Math.round(c3.output * 100)}%, V-301 ${v301}, label "${lbl.replace(/\n/g, " ")}"`);
@@ -230,7 +235,7 @@ await page.waitForTimeout(3000);
 // ---------------------------------------------------------------- Test 11
 {
   await act("loadPreset", "incident");
-  await page.keyboard.press("3");
+  await page.keyboard.press("2");
   await page.waitForTimeout(800);
   const focusables = await page.locator('[aria-label="3D facility labels"] button').count();
   await page.focus('a[href="#main"]');

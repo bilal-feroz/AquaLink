@@ -3,7 +3,7 @@
 import type { ThreeEvent } from "@react-three/fiber";
 import { FILTERS, JUNCTIONS, PUMPS, SENSORS, TANKS, VALVES } from "@/lib/data/facility";
 import type { Vec3 } from "@/lib/types";
-import { useAppStore, type LayerState } from "@/store/useAppStore";
+import { useAppStore, type LayerState, type ViewMode } from "@/store/useAppStore";
 
 /**
  * Invisible interaction proxies with stable asset ids. Transparent glass and
@@ -11,10 +11,12 @@ import { useAppStore, type LayerState } from "@/store/useAppStore";
  * Proxies are only mounted for visible layers, so hidden assets never intercept
  * pointer events.
  */
-export function Picking({ layers, mode }: { layers: LayerState; mode: "public" | "infrastructure" | "incident" }) {
+export function Picking({ layers, mode }: { layers: LayerState; mode: ViewMode }) {
   const select = useAppStore((s) => s.select);
   const hover = useAppStore((s) => s.hover);
-  const engineering = mode !== "public";
+  // The plant hall is part of the public world too (behind the atrium).
+  const engineering = true;
+  void mode;
 
   const handlers = (id: string) => ({
     onClick: (e: ThreeEvent<MouseEvent>) => {

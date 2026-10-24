@@ -74,7 +74,7 @@ export function Header() {
 
         {active.length > 0 ? (
           <button
-            onClick={() => setMode("incident")}
+            onClick={() => setMode("operations")}
             className="flex items-center gap-2 rounded-full bg-crit-bg py-1.5 pr-2.5 pl-1.5 text-[13px] font-medium text-crit transition-colors hover:bg-red-100"
           >
             <span className="pulse-crit grid size-5 place-items-center rounded-full bg-crit text-[11px] font-bold text-white">{active.length}</span>

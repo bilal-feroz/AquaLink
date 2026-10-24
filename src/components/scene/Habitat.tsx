@@ -43,6 +43,8 @@ interface FishInstance {
   colA: string;
   colB: string;
   pattern: number;
+  /** Index into the tank's habitat.species list. */
+  species?: number;
 }
 
 const REEF_PALETTE: [string, string, number][] = [
@@ -63,7 +65,21 @@ function buildLife(t: TankConfig, waterH: number) {
   const R = t.radius;
   const lists: Record<GeoKind, FishInstance[]> = { shark: [], ray: [], slim: [], reef: [], deep: [], seahorse: [] };
   const anemones = anemoneSpots(t);
-  for (const g of t.habitat.species) {
+  const kindsAll = Object.keys(lists) as GeoKind[];
+  t.habitat.species.forEach((g, speciesIdx) => {
+    const before = kindsAll.map((k) => lists[k].length);
+    tagSpecies(g, speciesIdx, before);
+  });
+  return lists;
+
+  function tagSpecies(g: TankConfig["habitat"]["species"][number], speciesIdx: number, before: number[]) {
+    addSpecies(g);
+    kindsAll.forEach((k, i) => {
+      for (let j = before[i]; j < lists[k].length; j++) lists[k][j].species = speciesIdx;
+    });
+  }
+
+  function addSpecies(g: TankConfig["habitat"]["species"][number]) {
     if (g.kind === "shark") {
       for (let i = 0; i < g.count; i++)
         lists.shark.push({
@@ -165,7 +181,33 @@ function buildLife(t: TankConfig, waterH: number) {
       }
     }
   }
-  return lists;
+}
+
+// Marine life is built once per tank so the scene and camera-follow share it.
+const LIFE_CACHE = new Map<string, Record<GeoKind, FishInstance[]>>();
+function lifeFor(t: TankConfig) {
+  if (!LIFE_CACHE.has(t.id)) LIFE_CACHE.set(t.id, buildLife(t, t.height * 0.965));
+  return LIFE_CACHE.get(t.id)!;
+}
+
+/**
+ * World position of a representative animal of one species, matching the
+ * GPU swim path in marineMaterial exactly (same formula, same clock).
+ */
+export function speciesWorldPosition(t: TankConfig, speciesIdx: number, time: number, out = new THREE.Vector3()) {
+  const lists = lifeFor(t);
+  let inst: FishInstance | undefined;
+  for (const k of Object.keys(lists) as GeoKind[]) {
+    inst = lists[k].find((f) => f.species === speciesIdx);
+    if (inst) break;
+  }
+  if (!inst) return out.set(t.position[0], t.position[1] + t.plinth + t.height * 0.5, t.position[2]);
+  const [radius, height, speed, phase] = inst.orbit;
+  const [vAmp, vFreq, rAmp] = inst.wobble;
+  const ang = phase + speed * time;
+  const r = radius + rAmp * Math.sin(time * 0.21 + phase * 3);
+  const y = height + vAmp * Math.sin(time * vFreq + phase * 5);
+  return out.set(t.position[0] + inst.center[0] + Math.cos(ang) * r, t.position[1] + t.plinth + y, t.position[2] + inst.center[2] + Math.sin(ang) * r);
 }
 
 function anemoneSpots(t: TankConfig): [number, number, number][] {
@@ -489,7 +531,7 @@ export function Habitat({ t, status, selected, hovered, dim, showMarine, emphasi
     [mats],
   );
 
-  const life = useMemo(() => buildLife(t, waterH), [t, waterH]);
+  const life = useMemo(() => lifeFor(t), [t]);
   const particleGeo = useMemo(() => {
     const r = rng(t.code.charCodeAt(0) * 53);
     const n = t.radius > 4 ? 420 : 110;

@@ -7,8 +7,8 @@
  *
  * Nothing here is wired to real equipment. All values are simulated.
  */
-import { FLOW_THRESHOLDS, LOOPS, PUMPS, SCENARIO_START, TANKS, VALVES } from "@/lib/data/facility";
-import { PUMP_BY_ID, TANK_BY_ID, downstreamTanks } from "@/lib/topology/graph";
+import { FILTERS, FLOW_THRESHOLDS, LOOPS, PUMPS, SCENARIO_START, TANKS, VALVES } from "@/lib/data/facility";
+import { FILTER_BY_ID, PUMP_BY_ID, TANK_BY_ID, assetShort, downstreamTanks, outgoing } from "@/lib/topology/graph";
 import { solveHydraulics } from "./hydraulics";
 
 export type PumpMode = "running" | "standby" | "starting" | "tripping" | "fault" | "stopping";
@@ -61,6 +61,22 @@ export interface TankRuntime {
   belowSince?: number;
   restoredSince?: number;
   lowFlowAlarm: boolean;
+  /** Since when circulation has sat in the degraded band (60–90 %). */
+  degradedSince?: number;
+  degradedAlarm: boolean;
+}
+
+export interface FilterRuntime {
+  id: string;
+  /** Media blockage, 0 = clean, 1 = fully blocked. */
+  clog: number;
+  clogTarget: number;
+  /** Differential pressure across the bed, kPa (before measurement noise). */
+  dp: number;
+  highDpSince?: number;
+  highDpAlarm: boolean;
+  backwashing: boolean;
+  backwashSince?: number;
 }
 
 export interface SimEvent {
@@ -95,7 +111,7 @@ export interface IncidentRuntime {
   recoveryCommandAt?: number;
 }
 
-export type SimCommandType = "inject-fault" | "recover" | "start-backup";
+export type SimCommandType = "inject-fault" | "recover" | "start-backup" | "inject-clog" | "backwash";
 
 export interface SimCommand {
   t: number;
@@ -117,6 +133,7 @@ export interface SimState {
   t: number;
   startedAt: number;
   pumps: Record<string, PumpRuntime>;
+  filters: Record<string, FilterRuntime>;
   valves: Record<string, ValveRuntime>;
   tanks: Record<string, TankRuntime>;
   edgeFlow: Record<string, number>;
@@ -150,7 +167,24 @@ export const SIM = {
   drift: { temp: 0.00003, ph: -0.00004, dissolvedO2: -0.0002 },
   /** Recovery time constant towards baseline when circulating normally, seconds. */
   relaxSec: 1200,
+  /** Filter blockage scenario: final blockage, build-up time, backwash time. */
+  clogTarget: 0.3,
+  clogRampSec: 240,
+  backwashSec: 90,
+  /** High differential-pressure alarm, kPa, and its debounce. */
+  dpAlarmKpa: 62,
+  dpAlarmDelaySec: 20,
 };
+
+/** Clean-bed differential pressure rises with throughput²; blockage adds to it. */
+export function filterDp(flowFraction: number, clog: number) {
+  return 18 + 30 * flowFraction * flowFraction + 120 * clog;
+}
+
+export function loopDesignFlow(filterId: string) {
+  const loop = LOOPS.find((l) => l.filterId === filterId);
+  return TANKS.filter((t) => loop?.tankIds.includes(t.id)).reduce((sum, t) => sum + t.designFlow, 0) || 1;
+}
 
 export function classifyFlow(pct: number): CirculationStatus {
   if (pct >= FLOW_THRESHOLDS.healthy) return "healthy";
@@ -187,12 +221,16 @@ export function createInitialState(t0 = SCENARIO_START): SimState {
       dissolvedO2: t.baseline.dissolvedO2,
       status: "healthy",
       lowFlowAlarm: false,
+      degradedAlarm: false,
     };
   }
+  const filters: Record<string, FilterRuntime> = {};
+  for (const f of FILTERS) filters[f.id] = { id: f.id, clog: 0, clogTarget: 0, dp: filterDp(1, 0), highDpAlarm: false, backwashing: false };
   const state: SimState = {
     t: t0,
     startedAt: t0,
     pumps,
+    filters,
     valves,
     tanks,
     edgeFlow: {},
@@ -232,6 +270,15 @@ export function activeIncidents(s: Pick<SimState, "incidents">) {
   return s.incidents.filter((i) => i.status !== "resolved");
 }
 
+/** True once the incident's root asset is back in normal service. */
+function rootHealthy(s: SimState, rootId: string) {
+  const pump = s.pumps[rootId];
+  if (pump) return pump.mode === "running" || (PUMP_BY_ID[rootId]?.role === "backup" && pump.mode === "standby");
+  const filter = s.filters[rootId];
+  if (filter) return !filter.backwashing && filter.clog < 0.02;
+  return true;
+}
+
 function incidentForAsset(s: SimState, assetId: string) {
   return s.incidents.find((i) => i.status !== "resolved" && (i.rootAssetId === assetId || downstreamTanks(i.rootAssetId).includes(assetId)));
 }
@@ -243,7 +290,37 @@ function startPump(s: SimState, id: string, setpoint: number) {
   p.modeSince = s.t;
 }
 
+function applyFilterCommand(s: SimState, c: SimCommand) {
+  const f = s.filters[c.assetId];
+  const cfg = FILTER_BY_ID[c.assetId];
+  if (!f || !cfg) return;
+  if (c.type === "inject-clog") {
+    if (f.clogTarget > 0) return;
+    f.clogTarget = SIM.clogTarget;
+  } else if (c.type === "backwash" || c.type === "recover") {
+    if (f.clog <= 0.001 || f.backwashing) return;
+    f.backwashing = true;
+    f.backwashSince = s.t;
+    f.clogTarget = 0;
+    const inc = incidentForAsset(s, c.assetId);
+    if (inc) {
+      inc.status = "recovering";
+      inc.recoveryCommandAt = s.t;
+    }
+    pushEvent(s, {
+      t: s.t,
+      kind: "command",
+      severity: "info",
+      title: `Backwash of ${cfg.code} started (simulated)`,
+      detail: `Authorized backwash and rinse of ${cfg.name}, about ${SIM.backwashSec} s.`,
+      assets: [c.assetId],
+      incidentId: inc?.id,
+    });
+  }
+}
+
 function applyCommand(s: SimState, c: SimCommand) {
+  if (s.filters[c.assetId]) return applyFilterCommand(s, c);
   const p = s.pumps[c.assetId];
   const cfg = PUMP_BY_ID[c.assetId];
   if (!p || !cfg) return;
@@ -339,6 +416,82 @@ function openIncident(s: SimState, rootId: string): IncidentRuntime {
   };
   s.incidents.push(inc);
   return inc;
+}
+
+function openFilterIncident(s: SimState, filterId: string): IncidentRuntime {
+  const cfg = FILTER_BY_ID[filterId];
+  const f = s.filters[filterId];
+  const number = SIM.firstIncidentNumber + s.counters.incident;
+  s.counters.incident += 1;
+  const inc: IncidentRuntime = {
+    id: `INC-${number}`,
+    number,
+    title: `${cfg.name} Media Blockage`,
+    rootAssetId: filterId,
+    openedAt: s.t,
+    status: "active",
+    affectedTankIds: [],
+    diagnosis: {
+      label: "Filter media blockage (high differential pressure)",
+      confidence: "confirmed",
+      evidence: `Simulated differential pressure rose to ${f.dp.toFixed(0)} kPa (alarm ${SIM.dpAlarmKpa} kPa) while loop throughput fell, consistent with a blocked sand bed.`,
+    },
+  };
+  s.incidents.push(inc);
+  return inc;
+}
+
+function updateFilters(s: SimState) {
+  for (const cfg of FILTERS) {
+    const f = s.filters[cfg.id];
+    if (f.backwashing) {
+      f.clog = Math.max(0, f.clog - SIM.clogTarget / SIM.backwashSec);
+      if (f.clog <= 0) {
+        f.backwashing = false;
+        f.clogTarget = 0;
+        const inc = incidentForAsset(s, cfg.id);
+        pushEvent(s, {
+          t: s.t,
+          kind: "recovery",
+          severity: "ok",
+          title: `${cfg.code} backwash complete: filter back in service`,
+          detail: `${cfg.name} bed clean; differential pressure back to normal.`,
+          assets: [cfg.id],
+          incidentId: inc?.id,
+        });
+      }
+    } else if (f.clog < f.clogTarget) {
+      f.clog = Math.min(f.clogTarget, f.clog + SIM.clogTarget / SIM.clogRampSec);
+    }
+  }
+}
+
+function updateFilterAlarms(s: SimState) {
+  for (const cfg of FILTERS) {
+    const f = s.filters[cfg.id];
+    const flow = s.nodeFlow[cfg.id] ?? 0;
+    f.dp = filterDp(flow / loopDesignFlow(cfg.id), f.clog);
+    if (f.dp > SIM.dpAlarmKpa) {
+      if (f.highDpSince === undefined) f.highDpSince = s.t;
+      if (!f.highDpAlarm && s.t - f.highDpSince >= SIM.dpAlarmDelaySec) {
+        f.highDpAlarm = true;
+        const inc = incidentForAsset(s, cfg.id) ?? openFilterIncident(s, cfg.id);
+        const tanks = downstreamTanks(cfg.id);
+        pushEvent(s, {
+          t: s.t,
+          kind: "fault",
+          severity: "critical",
+          title: `${cfg.code} high differential pressure: media blockage`,
+          detail: `Differential pressure ${f.dp.toFixed(0)} kPa (alarm ${SIM.dpAlarmKpa} kPa). Loop throughput limited for ${tankList(tanks)}; ${inc.id} opened.`,
+          assets: [cfg.id, ...tanks],
+          incidentId: inc.id,
+        });
+      }
+    } else {
+      f.highDpSince = undefined;
+      f.highDpAlarm = false;
+    }
+  }
 }
 
 function updatePumps(s: SimState) {
@@ -497,6 +650,13 @@ function updateValves(s: SimState) {
 function solve(s: SimState) {
   const pumpOffered: Record<string, number> = {};
   for (const cfg of PUMPS) pumpOffered[cfg.id] = s.pumps[cfg.id].output * cfg.ratedFlow;
+  // A blocked filter limits what the pumps drawing through it can deliver.
+  for (const f of FILTERS) {
+    const fed = PUMPS.filter((pc) => feedsFrom(f.id, pc.id));
+    const offered = fed.reduce((sum, pc) => sum + pumpOffered[pc.id], 0);
+    const cap = f.capacity * (1 - s.filters[f.id].clog);
+    if (offered > cap && offered > 0) for (const pc of fed) pumpOffered[pc.id] *= cap / offered;
+  }
   const valveOpen: Record<string, number> = {};
   for (const v of Object.values(s.valves)) valveOpen[v.id] = v.open;
   const res = solveHydraulics({ pumpOffered, valveOpen });
@@ -509,6 +669,19 @@ function solve(s: SimState) {
     tank.flowPct = (tank.flow / cfg.designFlow) * 100;
     tank.status = classifyFlow(tank.flowPct);
   }
+}
+
+function feedsFrom(filterId: string, pumpId: string): boolean {
+  const stack = [filterId];
+  const seen = new Set<string>();
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (n === pumpId) return true;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    for (const e of outgoing(n, ["suction"])) stack.push(e.to);
+  }
+  return false;
 }
 
 function updateWaterQuality(s: SimState) {
@@ -528,9 +701,20 @@ function updateWaterQuality(s: SimState) {
 
 function updateAlarms(s: SimState) {
   const raised: string[] = [];
+  const degraded: string[] = [];
   const cleared: string[] = [];
   for (const cfg of TANKS) {
     const tank = s.tanks[cfg.id];
+    // Degraded band (60–90 %): warning after the same debounce as the low-flow alarm.
+    if (tank.flowPct >= FLOW_THRESHOLDS.reduced && tank.flowPct < FLOW_THRESHOLDS.healthy) {
+      if (tank.degradedSince === undefined) tank.degradedSince = s.t;
+      if (!tank.degradedAlarm && !tank.lowFlowAlarm && s.t - tank.degradedSince >= FLOW_THRESHOLDS.alarmDelaySec) {
+        tank.degradedAlarm = true;
+        degraded.push(cfg.id);
+      }
+    } else {
+      tank.degradedSince = undefined;
+    }
     if (tank.flowPct < FLOW_THRESHOLDS.reduced) {
       tank.restoredSince = undefined;
       if (tank.belowSince === undefined) tank.belowSince = s.t;
@@ -540,10 +724,11 @@ function updateAlarms(s: SimState) {
       }
     } else {
       tank.belowSince = undefined;
-      if (tank.lowFlowAlarm && tank.flowPct >= FLOW_THRESHOLDS.healthy) {
+      if ((tank.lowFlowAlarm || tank.degradedAlarm) && tank.flowPct >= FLOW_THRESHOLDS.healthy) {
         if (tank.restoredSince === undefined) tank.restoredSince = s.t;
         if (s.t - tank.restoredSince >= SIM.restoredWindowSec) {
           tank.lowFlowAlarm = false;
+          tank.degradedAlarm = false;
           tank.restoredSince = undefined;
           cleared.push(cfg.id);
         }
@@ -556,7 +741,7 @@ function updateAlarms(s: SimState) {
     const inc = incidentForAsset(s, raised[0]);
     const last = s.events[s.events.length - 1];
     // Group alarms raised within a few seconds into one timeline entry.
-    if (last && last.kind === "alarm" && s.t - last.t <= 5 && last.incidentId === inc?.id) {
+    if (last && last.kind === "alarm" && last.severity === "critical" && s.t - last.t <= 5 && last.incidentId === inc?.id) {
       const all = [...new Set([...last.assets, ...raised])].sort();
       last.assets = all;
       last.title = `${tankList(all)} flow degradation detected`;
@@ -571,6 +756,17 @@ function updateAlarms(s: SimState) {
         assets: raised,
         incidentId: inc?.id,
       });
+    }
+  }
+  if (degraded.length) {
+    const inc = incidentForAsset(s, degraded[0]);
+    const last = s.events[s.events.length - 1];
+    const detail = `Circulation between ${FLOW_THRESHOLDS.reduced}% and ${FLOW_THRESHOLDS.healthy}% of design for ${FLOW_THRESHOLDS.alarmDelaySec} s.`;
+    if (last && last.kind === "alarm" && last.severity === "warning" && s.t - last.t <= 5 && last.incidentId === inc?.id) {
+      last.assets = [...new Set([...last.assets, ...degraded])].sort();
+      last.title = `${tankList(last.assets)} circulation degraded`;
+    } else {
+      pushEvent(s, { t: s.t, kind: "alarm", severity: "warning", title: `${tankList(degraded)} circulation degraded`, detail, assets: degraded, incidentId: inc?.id });
     }
   }
   if (cleared.length) {
@@ -617,7 +813,7 @@ function updateIncidents(s: SimState) {
           kind: "stable",
           severity: "warning",
           title: `${tankList(inc.affectedTankIds)} stabilized at partial circulation`,
-          detail: `${parts}. Flows steady for ${SIM.stabilityWindowSec} s on ${inc.backupPumpId ? PUMP_BY_ID[inc.backupPumpId].code + " backup" : "remaining supply"}.`,
+          detail: `${parts}. Flows steady for ${SIM.stabilityWindowSec} s on ${inc.backupPumpId ? PUMP_BY_ID[inc.backupPumpId].code + " backup" : "the remaining supply"}.`,
           assets: [...inc.affectedTankIds],
           incidentId: inc.id,
         });
@@ -635,15 +831,14 @@ function updateIncidents(s: SimState) {
         kind: "status",
         severity: "critical",
         title: below.length ? `${below.length === 1 ? "One tank remains" : `${numberWord(below.length)} tanks remain`} affected` : "Incident unresolved",
-        detail: `${PUMP_BY_ID[inc.rootAssetId].code} out of service. ${backup && backup.mode === "running" ? `${PUMP_BY_ID[backup.id].code} backup active. ` : ""}${below.map((tk) => `${TANK_BY_ID[tk.id].name} ${Math.round(tk.flowPct)}%`).join(", ")}.`,
+        detail: `${assetShort(inc.rootAssetId)} ${s.filters[inc.rootAssetId] ? "still blocked" : "out of service"}. ${backup && backup.mode === "running" ? `${PUMP_BY_ID[backup.id].code} backup active. ` : ""}${below.map((tk) => `${TANK_BY_ID[tk.id].name} ${Math.round(tk.flowPct)}%`).join(", ")}.`,
         assets: below.map((tk) => tk.id),
         incidentId: inc.id,
       });
     }
 
     // Resolution: root asset running and every affected tank healthy for the window.
-    const root = s.pumps[inc.rootAssetId];
-    const rootRunning = root?.mode === "running" || (PUMP_BY_ID[inc.rootAssetId]?.role === "backup" && root?.mode === "standby");
+    const rootRunning = rootHealthy(s, inc.rootAssetId);
     const allHealthy = affected.every((tk) => tk.flowPct >= FLOW_THRESHOLDS.healthy);
     if (rootRunning && allHealthy) {
       if (inc.restoredSince === undefined) inc.restoredSince = s.t;
@@ -655,7 +850,7 @@ function updateIncidents(s: SimState) {
           kind: "resolved",
           severity: "ok",
           title: `${inc.id} resolved`,
-          detail: `${PUMP_BY_ID[inc.rootAssetId].code} running and all affected tanks at design circulation.`,
+          detail: `${assetShort(inc.rootAssetId)} back in normal service and all affected tanks at design circulation.`,
           assets: [inc.rootAssetId, ...inc.affectedTankIds],
           incidentId: inc.id,
         });
@@ -689,8 +884,10 @@ export function stepOnce(s: SimState) {
   for (const c of s.commands) if (c.t === s.t) applyCommand(s, c);
   autoTransfer(s);
   updatePumps(s);
+  updateFilters(s);
   updateValves(s);
   solve(s);
+  updateFilterAlarms(s);
   updateWaterQuality(s);
   updateAlarms(s);
   updateIncidents(s);
@@ -724,7 +921,10 @@ export function replay(commands: SimCommand[], target: number, t0 = SCENARIO_STA
 export function isTransient(s: SimState): boolean {
   if (Object.values(s.pumps).some((p) => p.mode === "tripping" || p.mode === "starting" || p.mode === "stopping")) return true;
   if (s.commands.some((c) => c.t > s.t)) return true;
-  return s.incidents.some((i) => (i.status === "active" && !i.stabilizedAt && (i.backupPumpId ? s.pumps[i.backupPumpId].mode !== "fault" : false)) || i.status === "recovering");
+  if (Object.values(s.filters).some((f) => f.backwashing || Math.abs(f.clog - f.clogTarget) > 1e-6)) return true;
+  return s.incidents.some(
+    (i) => (i.status === "active" && !i.stabilizedAt && (i.backupPumpId ? s.pumps[i.backupPumpId].mode !== "fault" : !!s.filters[i.rootAssetId])) || i.status === "recovering",
+  );
 }
 
 export function pumpIsBackupActive(s: SimState, pumpId: string) {

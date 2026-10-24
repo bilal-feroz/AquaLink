@@ -84,5 +84,22 @@ const c1 = replay([{ t: hms(10, 1), type: "inject-fault", assetId: "PMP-C1" }], 
 check("C-1 fault: A, D, E, F lose flow; B, C unaffected",
   ["TNK-A", "TNK-D", "TNK-E", "TNK-F"].every((id) => c1.tanks[id].flowPct < 5) && ["TNK-B", "TNK-C"].every((id) => c1.tanks[id].flowPct === 100));
 
+// Second scenario: sand filter F-1 blockage limits Loop 1 only.
+const fp = PRESETS.find((p) => p.id === "filter")!;
+const f = replay(fp.commands, fp.target);
+console.log("\nFilter scenario timeline:");
+for (const e of f.events) console.log(`  ${clock(e.t)}  [${e.kind}] ${e.title}`);
+const loop1 = ["TNK-A", "TNK-D", "TNK-E", "TNK-F"];
+const fflows = loop1.map((id) => f.tanks[id].flowPct);
+check("filter: Loop 1 tanks degraded (60–90 %)", fflows.every((v) => v >= 60 && v < 90), fflows.map((v) => v.toFixed(1)).join(","));
+check("filter: Loop 2 tanks unaffected", f.tanks["TNK-B"].flowPct === 100 && f.tanks["TNK-C"].flowPct === 100);
+check("filter: incident rooted at FLT-1 affecting A, D, E, F", f.incidents[0]?.rootAssetId === "FLT-1" && f.incidents[0].affectedTankIds.join() === "TNK-A,TNK-D,TNK-E,TNK-F", f.incidents[0]?.affectedTankIds.join());
+check("filter: high DP alarm raised", f.events.some((e) => e.kind === "fault" && e.title.includes("differential pressure")));
+check("filter: degraded-circulation warning grouped", f.events.filter((e) => e.kind === "alarm").length === 1);
+check("filter: stabilized", f.incidents[0]?.stabilizedAt !== undefined);
+f.commands.push({ t: f.t + 1, type: "backwash", assetId: "FLT-1" });
+check("filter: backwash resolves the incident", advanceUntil(f, (x) => x.incidents[0].status === "resolved", 900), clock(f.t));
+check("filter: all tanks back to design", TANKS.every((t) => f.tanks[t.id].flowPct > 99));
+
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll checks passed");
 process.exit(failures ? 1 : 0);

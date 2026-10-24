@@ -5,11 +5,13 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { BUILDING, TANKS } from "@/lib/data/facility";
+import { activeIncidents } from "@/lib/simulation/engine";
 import { ASSET_BY_ID, TANK_BY_ID } from "@/lib/topology/graph";
 import { effectiveReducedMotion, useAppStore } from "@/store/useAppStore";
-import { CAMERA_PRESETS, LEVEL_PRESETS, type CameraPreset } from "./sceneFx";
+import { speciesWorldPosition } from "./Habitat";
+import { CAMERA_PRESETS, LEVEL_PRESETS, sceneFx, type CameraPreset } from "./sceneFx";
 
-const BOUNDS = new THREE.Box3(new THREE.Vector3(-27, -6.5, -19), new THREE.Vector3(27, 19, 24));
+const BOUNDS = new THREE.Box3(new THREE.Vector3(-27, -2.5, BUILDING.plant.minZ - 2), new THREE.Vector3(27, 19, 26));
 
 /** Camera framing for focusing one asset. */
 function focusPreset(id: string, camera: THREE.Camera): CameraPreset | null {
@@ -50,20 +52,20 @@ function focusPreset(id: string, camera: THREE.Camera): CameraPreset | null {
   return { position: pos.toArray() as CameraPreset["position"], target: target.toArray() as CameraPreset["target"] };
 }
 
-/** True if the camera line from target along dir is free of columns, shafts and walls. */
+/** True if the camera line from target along dir is free of decks, columns, roof and other tanks. */
 function clearLine(target: THREE.Vector3, dir: THREE.Vector3, dist: number, ownId: string) {
   const p = new THREE.Vector3();
+  const floor = target.z < BUILDING.minZ ? BUILDING.plant.floor + 0.5 : 0.6;
   for (let s = 1.5; s <= dist + 0.5; s += 0.5) {
     p.copy(target).addScaledVector(dir, s);
-    if (p.x < BUILDING.minX + 0.6 || p.x > BUILDING.maxX - 0.6 || p.z < BUILDING.minZ + 0.6) return false;
-    if (p.y > BUILDING.roof - 0.8 || p.y < 0.6) return false;
+    if (p.x < BUILDING.minX + 0.6 || p.x > BUILDING.maxX - 0.6 || p.z < BUILDING.plant.minZ + 0.6) return false;
+    if (p.y > BUILDING.roof - 0.8 || p.y < floor) return false;
     for (const key of ["L2", "L3"] as const) {
       const d = BUILDING.decks[key];
       if (Math.abs(p.y - (d.y - 0.22)) > 0.7) continue;
       for (const r of [d.left, d.right, d.back]) if (p.x > r.minX && p.x < r.maxX && p.z > r.minZ && p.z < r.maxZ) return false;
     }
     for (const [cx, cz] of BUILDING.columns) if (Math.hypot(p.x - cx, p.z - cz) < BUILDING.columnRadius + 0.9) return false;
-    for (const sh of BUILDING.shafts) if (p.x > sh.minX - 0.6 && p.x < sh.maxX + 0.6 && p.z > sh.minZ - 0.6 && p.z < sh.maxZ + 0.6 && p.y < sh.top + 0.5) return false;
     for (const t of TANKS) {
       if (t.id === ownId) continue;
       if (p.y < t.position[1] - 0.3 || p.y > t.position[1] + t.plinth + t.height + 0.5) continue;
@@ -73,17 +75,35 @@ function clearLine(target: THREE.Vector3, dir: THREE.Vector3, dist: number, ownI
   return true;
 }
 
+/** Operations framing: the plant hall in front, centred on the incident if one is active. */
+function operationsPreset(rootId?: string, tanks: string[] = []): CameraPreset {
+  if (!rootId) return CAMERA_PRESETS.operations;
+  const pts = [ASSET_BY_ID[rootId]?.position, ...tanks.map((id) => ASSET_BY_ID[id]?.position)].filter(Boolean) as [number, number, number][];
+  const c = pts.reduce((acc, q) => [acc[0] + q[0] / pts.length, acc[1] + q[1] / pts.length, acc[2] + q[2] / pts.length], [0, 0, 0]);
+  const target: [number, number, number] = [c[0] * 0.8, 2.5, c[2]];
+  // Look from behind, on the same side as the fault, so the whole affected loop is in frame.
+  const dir = new THREE.Vector3(c[0] < -2 ? -0.32 : 0.32, 0.55, -0.77).normalize();
+  const dist = 60;
+  return { position: [target[0] + dir.x * dist, target[1] + dir.y * dist, target[2] + dir.z * dist], target };
+}
+
 export function CameraRig() {
   const ref = useRef<CameraControls>(null);
   const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
   const mode = useAppStore((s) => s.mode);
   const level = useAppStore((s) => s.level);
   const nonce = useAppStore((s) => s.cameraNonce);
+  const follow = useAppStore((s) => s.follow);
+  const setFollow = useAppStore((s) => s.setFollow);
+  const incidentKey = useAppStore((s) => {
+    const inc = activeIncidents(s.sim)[0];
+    return inc ? `${inc.rootAssetId}|${inc.affectedTankIds.join(",")}` : "";
+  });
   const reduced = useAppStore(effectiveReducedMotion);
   const first = useRef(true);
   const lastDist = useRef(40);
 
-  const size = useThree((s) => s.size);
   const go = (p: CameraPreset, smooth = true, frame = false) => {
     const c = ref.current;
     if (!c) return;
@@ -101,21 +121,36 @@ export function CameraRig() {
 
   // Mode / level / reset transitions.
   useEffect(() => {
-    const p = level ? LEVEL_PRESETS[level] : CAMERA_PRESETS[mode];
+    let p: CameraPreset;
+    if (level) p = LEVEL_PRESETS[level];
+    else if (mode === "operations") {
+      const [root, tanks] = incidentKey.split("|");
+      p = operationsPreset(root || undefined, tanks ? tanks.split(",") : []);
+    } else p = CAMERA_PRESETS.public;
     go(p, !first.current, !level);
     first.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, level, nonce]);
 
-  // Keep the framed content above the incident timeline card: shift the view
-  // centre up by moving the camera down in screen space.
-  const timeline = useAppStore((s) => s.mode === "incident" && s.showTimeline && s.sim.incidents.length > 0 && !s.textView);
+  // A new incident while in Operations: swing round to frame the fault and what it affects.
+  const incidentRoot = incidentKey.split("|")[0];
+  const lastRoot = useRef(incidentRoot);
+  useEffect(() => {
+    const prev = lastRoot.current;
+    lastRoot.current = incidentRoot;
+    if (!incidentRoot || incidentRoot === prev || mode !== "operations" || level || useAppStore.getState().follow) return;
+    const tanks = incidentKey.split("|")[1];
+    go(operationsPreset(incidentRoot, tanks ? tanks.split(",") : []), true, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incidentRoot]);
+
+  // Keep the framed content above the incident timeline card.
+  const timeline = useAppStore((s) => s.mode === "operations" && s.showTimeline && activeIncidents(s.sim).length > 0 && !s.textView && !s.level);
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
-    const dist = lastDist.current;
-    const visible = 2 * dist * Math.tan(((camera as THREE.PerspectiveCamera).fov * Math.PI) / 360);
-    void c.setFocalOffset(0, timeline ? visible * 0.135 : 0, 0, !reduced);
+    const visible = 2 * lastDist.current * Math.tan(((camera as THREE.PerspectiveCamera).fov * Math.PI) / 360);
+    void c.setFocalOffset(0, timeline ? visible * 0.07 : 0, 0, !reduced);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeline, mode, level, nonce]);
 
@@ -123,6 +158,7 @@ export function CameraRig() {
   useEffect(() => {
     const onFocus = (e: Event) => {
       const id = (e as CustomEvent<string>).detail;
+      setFollow(null);
       const p = focusPreset(id, camera);
       if (p) go(p);
     };
@@ -144,20 +180,62 @@ export function CameraRig() {
     if (!c) return;
     c.setBoundary(BOUNDS);
     c.boundaryFriction = 0.2;
-    c.minDistance = 3;
-    c.maxDistance = 70;
+    c.minDistance = 2.5;
+    c.maxDistance = 85;
     c.smoothTime = 0.55;
     c.draggingSmoothTime = 0.12;
     c.dollySpeed = 0.6;
     c.truckSpeed = 1.4;
+    // Grabbing the view hands control back to the user.
+    const stop = () => {
+      if (useAppStore.getState().follow) useAppStore.getState().setFollow(null);
+    };
+    c.addEventListener("controlstart", stop);
+    return () => c.removeEventListener("controlstart", stop);
   }, []);
 
-  // Keep the camera out of tank volumes and inside the building envelope.
+  // Follow one species: keep it centred, viewed through the glass from outside.
+  const fish = useRef(new THREE.Vector3());
+  const followPos = useRef(new THREE.Vector3());
+  const followTarget = useRef(new THREE.Vector3());
+  const followStart = useRef(0);
+  useEffect(() => {
+    if (!follow || !ref.current) return;
+    followStart.current = performance.now();
+    ref.current.getTarget(followTarget.current);
+    ref.current.getPosition(followPos.current);
+    void ref.current.setFocalOffset(0, 0, 0, false);
+  }, [follow]);
+
   const tmp = useRef(new THREE.Vector3());
-  useFrame(() => {
+  useFrame((_, dt) => {
     const c = ref.current;
     if (!c) return;
     c.maxPolarAngle = mode === "public" ? Math.PI * 0.53 : Math.PI * 0.62;
+
+    if (follow) {
+      const t = TANK_BY_ID[follow.tankId];
+      if (t) {
+        speciesWorldPosition(t, follow.species, sceneFx.time * sceneFx.motion, fish.current);
+        const ox = fish.current.x - t.position[0];
+        const oz = fish.current.z - t.position[2];
+        const radial = new THREE.Vector2(ox, oz);
+        if (radial.lengthSq() < 0.01) radial.set(0, 1);
+        radial.normalize();
+        // Lean the viewpoint towards the open atrium so walls and decks stay out of shot.
+        const atrium = new THREE.Vector2(-t.position[0] * 0.5, 12 - t.position[2]).normalize();
+        const dir = radial.clone().multiplyScalar(0.55).add(atrium.multiplyScalar(0.45)).normalize();
+        const out = t.radius - Math.hypot(ox, oz) + (t.radius > 4 ? 4.2 : 3.2);
+        const desired = tmp.current.set(fish.current.x + dir.x * out, fish.current.y + 0.6, fish.current.z + dir.y * out);
+        const k = 1 - Math.exp(-dt * (performance.now() - followStart.current < 1500 ? 2.2 : 4));
+        followTarget.current.lerp(fish.current, k);
+        followPos.current.lerp(desired, k);
+        void c.setLookAt(followPos.current.x, followPos.current.y, followPos.current.z, followTarget.current.x, followTarget.current.y, followTarget.current.z, false);
+      }
+      return;
+    }
+
+    // Keep the camera out of tank volumes.
     const p = camera.position;
     for (const t of TANKS) {
       const top = t.position[1] + t.plinth + t.height + 0.4;
@@ -173,8 +251,8 @@ export function CameraRig() {
         c.setPosition(tmp.current.x, tmp.current.y, tmp.current.z, false);
       }
     }
-    if (p.y < -5.6) c.setPosition(p.x, -5.6, p.z, false);
-    if (p.y > 30) c.setPosition(p.x, 30, p.z, false);
+    if (p.y < -1.5) c.setPosition(p.x, -1.5, p.z, false);
+    if (p.y > 48) c.setPosition(p.x, 48, p.z, false);
   });
 
   return <CameraControls ref={ref} makeDefault />;

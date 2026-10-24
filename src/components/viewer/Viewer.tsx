@@ -2,11 +2,10 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { Logo } from "@/components/layout/Header";
 import { SceneLabels } from "@/components/scene/SceneLabels";
 import { useAppStore } from "@/store/useAppStore";
 import { TextView } from "./TextView";
-import { FloorSelector, FlowLegend, IncidentTimelineOverlay, ModeSwitcher, ScenarioDock, ViewerButtons, ViewerControls } from "./ViewerOverlays";
+import { FloorSelector, FlowLegend, FollowBadge, IncidentTimelineOverlay, ModeSwitcher, ViewerButtons, ViewerControls } from "./ViewerOverlays";
 
 const FacilityCanvas = dynamic(() => import("@/components/scene/FacilityCanvas"), {
   ssr: false,
@@ -16,14 +15,10 @@ const FacilityCanvas = dynamic(() => import("@/components/scene/FacilityCanvas")
 function SceneLoading() {
   return (
     <div className="absolute inset-0 grid place-items-center bg-scene text-white">
-      <div className="flex flex-col items-center gap-4">
-        <div className="opacity-90 invert-0">
-          <span className="sr-only">Loading 3D facility</span>
-        </div>
-        <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3">
-          <span className="size-4 animate-spin rounded-full border-2 border-white/25 border-t-sky-300" />
-          <span className="text-[13px] text-white/80">Building the facility twin…</span>
-        </div>
+      <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3">
+        <span className="size-4 animate-spin rounded-full border-2 border-white/25 border-t-sky-300" />
+        <span className="text-[13px] text-white/80">Building the facility twin…</span>
+        <span className="sr-only">Loading 3D facility</span>
       </div>
     </div>
   );
@@ -34,6 +29,7 @@ export function Viewer({ active }: { active: boolean }) {
   const textView = useAppStore((s) => s.textView);
   const webglFailed = useAppStore((s) => s.webglFailed);
   const setWebglFailed = useAppStore((s) => s.setWebglFailed);
+  const hasIncident = useAppStore((s) => s.sim.incidents.length > 0);
   const [supported, setSupported] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -45,10 +41,14 @@ export function Viewer({ active }: { active: boolean }) {
   }, [setWebglFailed]);
 
   const showText = textView || webglFailed;
-  const engineering = mode !== "public";
+  const operations = mode === "operations";
 
   return (
-    <div id="viewer" className="relative h-full min-h-0 w-full overflow-hidden rounded-2xl bg-scene shadow-[0_1px_2px_rgba(16,24,40,0.06),0_8px_24px_rgba(16,24,40,0.08)]" aria-label="3D facility viewer">
+    <div
+      id="viewer"
+      className="relative h-full min-h-0 w-full overflow-hidden rounded-[20px] bg-scene shadow-[0_1px_2px_rgba(16,24,40,0.08),0_12px_32px_rgba(16,24,40,0.14)] ring-1 ring-black/5"
+      aria-label="3D facility viewer"
+    >
       {supported && !webglFailed && <FacilityCanvas active={active && !textView} />}
       {supported === null && <SceneLoading />}
       {!showText && supported && <SceneLabels />}
@@ -57,18 +57,18 @@ export function Viewer({ active }: { active: boolean }) {
       {/* Overlays */}
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-4">
         <div className="flex items-start justify-between gap-3">
-          <div className="pointer-events-auto">
+          <div className="pointer-events-auto flex flex-col items-start gap-2">
             <ModeSwitcher />
+            <FollowBadge />
           </div>
-          <div className="pointer-events-auto flex items-center gap-1.5">
-            <ScenarioDock />
+          <div className="pointer-events-auto">
             <ViewerButtons />
           </div>
         </div>
         {!showText && (
           <div className="flex flex-col gap-3">
-            {mode === "incident" && (
-              <div className="max-w-[min(860px,calc(100%-210px))]">
+            {operations && hasIncident && (
+              <div className="max-w-[min(360px,calc(100%-210px))]">
                 <IncidentTimelineOverlay />
               </div>
             )}
@@ -76,7 +76,7 @@ export function Viewer({ active }: { active: boolean }) {
               <div className="pointer-events-auto shrink-0">
                 <ViewerControls />
               </div>
-              {engineering && (
+              {operations && (
                 <div className="pointer-events-auto hidden min-w-0 flex-1 justify-center lg:flex">
                   <FlowLegend />
                 </div>
@@ -88,9 +88,6 @@ export function Viewer({ active }: { active: boolean }) {
           </div>
         )}
       </div>
-      <span className="sr-only">
-        <Logo />
-      </span>
     </div>
   );
 }

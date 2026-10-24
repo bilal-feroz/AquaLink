@@ -1,41 +1,19 @@
 "use client";
 
-import {
-  Check,
-  ChevronDown,
-  FastForward,
-  Focus,
-  Layers,
-  LocateFixed,
-  Maximize2,
-  Minimize2,
-  Minus,
-  Network,
-  Pause,
-  Play,
-  Plus,
-  RotateCcw,
-  Table2,
-  TriangleAlert,
-  Users,
-  Wrench,
-  Zap,
-  type LucideIcon,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+import { Activity, ChevronDown, Fish, Focus, Layers, LocateFixed, Maximize2, Minimize2, Minus, Plus, Table2, Users, X, type LucideIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { FLOORS } from "@/lib/data/facility";
 import { cls, hm } from "@/lib/format";
-import { activeIncidents } from "@/lib/simulation/engine";
-import { scenarioStage, type ScenarioStage } from "@/lib/simulation/scenario";
+import { activeIncidents, type SimEvent } from "@/lib/simulation/engine";
 import { FLOW_VISUAL_HEX } from "@/lib/status";
+import { TANK_BY_ID } from "@/lib/topology/graph";
 import type { FloorId } from "@/lib/types";
 import { useAppStore, type LayerKey, type ViewMode } from "@/store/useAppStore";
 import { usePopover } from "@/components/layout/Header";
 
-const MODES: { id: ViewMode; label: string; icon: LucideIcon; key: string }[] = [
-  { id: "public", label: "Public View", icon: Users, key: "1" },
-  { id: "infrastructure", label: "Infrastructure View", icon: Network, key: "2" },
-  { id: "incident", label: "Incident View", icon: TriangleAlert, key: "3" },
+const MODES: { id: ViewMode; label: string; hint: string; icon: LucideIcon; key: string }[] = [
+  { id: "public", label: "Public", hint: "Visitor view", icon: Users, key: "1" },
+  { id: "operations", label: "Operations", hint: "Infrastructure & incidents", icon: Activity, key: "2" },
 ];
 
 export function ModeSwitcher() {
@@ -43,11 +21,11 @@ export function ModeSwitcher() {
   const setMode = useAppStore((s) => s.setMode);
   const hasIncident = useAppStore((s) => activeIncidents(s.sim).length > 0);
   return (
-    <div role="radiogroup" aria-label="View mode" className="scene-chip flex items-center gap-1 rounded-xl p-1 shadow-lg">
+    <div role="radiogroup" aria-label="View mode" className="scene-chip relative flex items-center gap-1 rounded-2xl p-1 shadow-lg">
       {MODES.map((m) => {
         const active = mode === m.id;
         const Icon = m.icon;
-        const alert = m.id === "incident" && hasIncident;
+        const alert = m.id === "operations" && hasIncident;
         return (
           <button
             key={m.id}
@@ -56,12 +34,17 @@ export function ModeSwitcher() {
             aria-keyshortcuts={m.key}
             onClick={() => setMode(m.id)}
             className={cls(
-              "relative flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-medium whitespace-nowrap transition-colors",
-              active ? (m.id === "incident" ? "bg-white text-crit shadow ring-2 ring-crit/70" : "bg-white text-brand shadow") : "text-white/85 hover:bg-white/10 hover:text-white",
+              "relative flex items-center gap-2.5 rounded-xl py-1.5 pr-3.5 pl-2 text-left whitespace-nowrap transition-all",
+              active ? (alert ? "bg-white text-crit shadow-md ring-2 ring-crit/60" : "bg-white text-brand shadow-md") : "text-white/85 hover:bg-white/10 hover:text-white",
             )}
           >
-            <Icon aria-hidden className="size-4" />
-            {m.label}
+            <span className={cls("grid size-7 place-items-center rounded-lg", active ? (alert ? "bg-crit-bg" : "bg-brand-50") : "bg-white/10")}>
+              <Icon aria-hidden className="size-4" />
+            </span>
+            <span>
+              <span className="block text-[13px] leading-tight font-semibold">{m.label}</span>
+              <span className={cls("block text-[10.5px] leading-tight", active ? "text-muted" : "text-white/55")}>{m.hint}</span>
+            </span>
             {alert && !active && <span aria-hidden className="pulse-crit absolute top-1.5 right-1.5 size-2 rounded-full bg-red-500" />}
           </button>
         );
@@ -70,115 +53,23 @@ export function ModeSwitcher() {
   );
 }
 
-const STAGES: { id: ScenarioStage; label: string }[] = [
-  { id: "baseline", label: "Healthy baseline" },
-  { id: "fault", label: "C-2 failure" },
-  { id: "backup", label: "Backup response" },
-  { id: "stabilized", label: "Stabilized" },
-  { id: "recovering", label: "Recovery" },
-];
-
-export function ScenarioDock() {
-  const sim = useAppStore((s) => s.sim);
-  const speed = useAppStore((s) => s.speed);
-  const playing = useAppStore((s) => s.playing);
-  const ff = useAppStore((s) => s.fastForwarding);
-  const autoFF = useAppStore((s) => s.autoFastForward);
-  const a = useAppStore.getState();
-  const pop = usePopover();
-  const stage = scenarioStage(sim);
-  const stageIdx = STAGES.findIndex((s) => s.id === (stage === "recovered" ? "recovering" : stage));
-  const active = activeIncidents(sim)[0];
-  const c2 = sim.pumps["PMP-C2"];
-
-  const step = (label: string, desc: string, onClick: () => void, disabled: boolean, icon: LucideIcon, done: boolean, current: boolean) => {
-    const Icon = icon;
-    return (
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        className={cls(
-          "flex w-full items-start gap-3 rounded-lg px-2.5 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-45",
-          current ? "bg-brand-50" : "hover:bg-slate-50",
-        )}
-      >
-        <span className={cls("mt-0.5 grid size-6 shrink-0 place-items-center rounded-full", done ? "bg-ok text-white" : current ? "bg-brand text-white" : "bg-slate-100 text-ink-2")}>
-          {done ? <Check aria-hidden className="size-3.5" /> : <Icon aria-hidden className="size-3.5" />}
-        </span>
-        <span>
-          <span className="block text-[13px] font-medium text-ink">{label}</span>
-          <span className="block text-[12px] leading-snug text-muted">{desc}</span>
-        </span>
-      </button>
-    );
-  };
-
+/** Shown while the camera is tracking one species. */
+export function FollowBadge() {
+  const follow = useAppStore((s) => s.follow);
+  const setFollow = useAppStore((s) => s.setFollow);
+  if (!follow) return null;
+  const t = TANK_BY_ID[follow.tankId];
+  const sp = t?.habitat.species[follow.species];
+  if (!t || !sp) return null;
   return (
-    <div className="flex items-center gap-1.5">
-      <div className="scene-chip flex items-center gap-1 rounded-xl p-1 text-white shadow-lg">
-        <button aria-label={playing ? "Pause simulation" : "Resume simulation"} onClick={a.togglePlaying} className="grid size-8 place-items-center rounded-lg hover:bg-white/10">
-          {playing ? <Pause aria-hidden className="size-4" /> : <Play aria-hidden className="size-4" />}
-        </button>
-        {[1, 10, 60].map((v) => (
-          <button
-            key={v}
-            aria-pressed={playing && speed === v}
-            onClick={() => a.setSpeed(v)}
-            className={cls("tabular h-8 rounded-lg px-2 text-[12px] font-semibold", playing && speed === v ? "bg-white text-ink" : "text-white/80 hover:bg-white/10")}
-          >
-            {v}×
-          </button>
-        ))}
-        {ff && playing && (
-          <span className="flex items-center gap-1 px-1.5 text-[11px] font-semibold text-amber-300" title="Fast-forwarding through the transient">
-            <FastForward aria-hidden className="size-3.5" /> 20×
-          </span>
-        )}
-      </div>
-      <div className="relative" ref={pop.ref}>
-        <button
-          aria-expanded={pop.open}
-          aria-haspopup="dialog"
-          onClick={() => pop.setOpen(!pop.open)}
-          className="scene-chip flex h-10 items-center gap-2 rounded-xl px-3 text-[13px] font-medium text-white shadow-lg hover:bg-white/10"
-        >
-          <Zap aria-hidden className="size-4 text-amber-300" />
-          Scenario
-          <span className="hidden whitespace-nowrap text-white/60 2xl:inline">· {STAGES[Math.max(0, stageIdx)]?.label ?? "Baseline"}</span>
-          <ChevronDown aria-hidden className="size-4 text-white/70" />
-        </button>
-        {pop.open && (
-          <div role="dialog" aria-label="Scenario controls" className="fade-in absolute right-0 z-30 mt-2 w-[330px] rounded-xl border border-line bg-white p-2 text-ink shadow-2xl">
-            <div className="flex items-center justify-between px-2.5 pt-1 pb-2">
-              <span className="text-sm font-semibold">Demonstration scenario</span>
-              <span className="rounded-md border border-dashed border-line-strong px-1.5 py-px text-[10px] font-semibold tracking-wide text-muted uppercase">Simulated</span>
-            </div>
-            {step("Healthy baseline", "All pumps normal, every tank at design flow.", () => a.openDialog({ resetConfirm: true }), false, RotateCcw, stageIdx > 0, stage === "baseline")}
-            {step("Simulate C-2 failure", "Inject a motor overcurrent fault on Pump C-2.", () => a.simulateFailure("PMP-C2"), !!active || c2.mode !== "running", TriangleAlert, stageIdx >= 1, stage === "fault")}
-            {step("Backup response", "Advance until the configured C-3 auto-transfer is confirmed.", a.backupResponse, !active || stage !== "fault", Zap, stageIdx >= 2 && stage !== "backup", stage === "backup")}
-            {step("Incident stabilization", "Advance until Tanks B and C hold steady on backup.", a.stabilize, !active || !(stage === "fault" || stage === "backup"), Layers, stageIdx >= 3 && stage !== "stabilized", stage === "stabilized")}
-            {step("Recovery", "Record an authorized C-2 restart and restore normal service.", a.recover, !active || active.status !== "active", Wrench, stage === "recovered", stage === "recovering")}
-            <div className="mt-1 border-t border-line px-2.5 pt-2.5 pb-1">
-              <div className="mb-2 text-[12px] font-semibold text-muted uppercase">Presets</div>
-              <div className="flex flex-wrap gap-1.5">
-                <button className="rounded-lg border border-line px-2.5 py-1.5 text-[12px] font-medium hover:bg-slate-50" onClick={() => a.loadPreset("incident")}>
-                  Reference incident (10:24)
-                </button>
-                <button className="rounded-lg border border-line px-2.5 py-1.5 text-[12px] font-medium hover:bg-slate-50" onClick={() => a.loadPreset("stabilizing")}>
-                  Fault onset (10:10)
-                </button>
-                <button className="rounded-lg border border-line px-2.5 py-1.5 text-[12px] font-medium hover:bg-slate-50" disabled={sim.pumps["PMP-C1"].mode !== "running"} onClick={() => a.simulateFailure("PMP-C1")}>
-                  Fail C-1 (no backup)
-                </button>
-              </div>
-              <label className="mt-3 flex items-center gap-2 text-[12.5px] text-ink-2">
-                <input type="checkbox" checked={autoFF} onChange={(e) => a.setAutoFastForward(e.target.checked)} className="size-4 accent-brand" />
-                Auto fast-forward transients (20×)
-              </label>
-            </div>
-          </div>
-        )}
-      </div>
+    <div className="scene-chip fade-in flex items-center gap-2.5 rounded-full py-1.5 pr-1.5 pl-3 text-white shadow-lg">
+      <Fish aria-hidden className="size-4 text-sky-300" />
+      <span className="text-[13px]">
+        Following <span className="font-semibold">{sp.label}</span> <span className="text-white/60">· {t.name}</span>
+      </span>
+      <button onClick={() => setFollow(null)} aria-label="Stop following" className="grid size-7 place-items-center rounded-full bg-white/10 hover:bg-white/20">
+        <X aria-hidden className="size-3.5" />
+      </button>
     </div>
   );
 }
@@ -201,7 +92,7 @@ export function ViewerButtons() {
         title="Accessible text view of the facility (T)"
       >
         <Table2 aria-hidden className="size-4" />
-        <span className="hidden 2xl:inline">Text view</span>
+        <span className="hidden xl:inline">Text view</span>
       </button>
       <button
         aria-label={full ? "Exit full screen" : "Full screen viewer"}
@@ -220,15 +111,15 @@ export function ViewerButtons() {
 
 const LAYER_LABELS: { key: LayerKey; label: string }[] = [
   { key: "tanks", label: "Tanks" },
+  { key: "marine", label: "Marine life" },
   { key: "pumps", label: "Pumps" },
   { key: "filters", label: "Filtration" },
   { key: "pipes", label: "Pipes" },
   { key: "valves", label: "Valves" },
   { key: "sensors", label: "Sensors" },
-  { key: "shell", label: "Architectural shell" },
   { key: "flow", label: "Water flow" },
+  { key: "shell", label: "Architectural shell" },
   { key: "labels", label: "Equipment labels" },
-  { key: "marine", label: "Marine life" },
   { key: "visitors", label: "Visitors" },
 ];
 
@@ -239,24 +130,21 @@ export function LayerToggles({ compact }: { compact?: boolean }) {
   const reset = useAppStore((s) => s.resetLayers);
   return (
     <div>
-      <ul className={cls("grid gap-0.5", compact ? "grid-cols-1" : "grid-cols-1")}>
-        {LAYER_LABELS.filter((l) => !(mode !== "public" && l.key === "visitors")).map((l) => {
-          const disabled = mode === "public" && ["pumps", "filters", "valves", "sensors", "pipes", "flow", "labels"].includes(l.key);
-          return (
-            <li key={l.key}>
-              <label className={cls("flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-[13px] hover:bg-slate-50", disabled && "cursor-not-allowed opacity-50")}>
-                <span className="text-ink-2">{l.label}</span>
-                <span className="relative inline-flex">
-                  <input type="checkbox" role="switch" className="peer sr-only" checked={layers[l.key]} disabled={disabled} onChange={() => toggle(l.key)} />
-                  <span className="h-5 w-9 rounded-full bg-slate-300 transition-colors peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2" />
-                  <span className="absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
-                </span>
-              </label>
-            </li>
-          );
-        })}
+      <ul className={cls("grid gap-0.5", compact ? "grid-cols-1" : "grid-cols-2 gap-x-3")}>
+        {LAYER_LABELS.filter((l) => !(mode !== "public" && l.key === "visitors")).map((l) => (
+          <li key={l.key}>
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-[13px] hover:bg-slate-50">
+              <span className="text-ink-2">{l.label}</span>
+              <span className="relative inline-flex">
+                <input type="checkbox" role="switch" className="peer sr-only" checked={layers[l.key]} onChange={() => toggle(l.key)} />
+                <span className="h-5 w-9 rounded-full bg-slate-300 transition-colors peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2" />
+                <span className="absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+              </span>
+            </label>
+          </li>
+        ))}
       </ul>
-      {mode === "public" && <p className="mt-1 px-2 text-[11.5px] text-muted">Engineering layers are hidden behind the building in Public View. Switch to Infrastructure View to reveal them.</p>}
+      {mode === "public" && <p className="mt-1 px-2 text-[11.5px] text-muted">In the public view, pipework is only drawn inside the plant hall behind the exhibits. Orbit round, or switch to Operations, to see it all.</p>}
       <button onClick={reset} className="mt-1 px-2 text-[12px] font-medium text-brand hover:underline">
         Reset layers for this view
       </button>
@@ -303,23 +191,31 @@ export function ViewerControls() {
 }
 
 function BuildingGlyph({ level }: { level: FloorId | null }) {
-  const levels: { id: FloorId; y: number }[] = [
-    { id: "L3", y: 8 },
-    { id: "L2", y: 22 },
-    { id: "L1", y: 36 },
-    { id: "B1", y: 52 },
+  const levels: { id: FloorId; y: number; x: number }[] = [
+    { id: "L3", y: 6, x: 0 },
+    { id: "L2", y: 20, x: 0 },
+    { id: "L1", y: 34, x: 0 },
+    { id: "PL", y: 34, x: 26 },
   ];
   return (
-    <svg viewBox="0 0 120 70" className="h-[70px] w-[120px]" aria-hidden>
+    <svg viewBox="0 0 132 62" className="h-[62px] w-[132px]" aria-hidden>
       {levels.map((l) => {
         const on = level === l.id;
         return (
-          <g key={l.id} transform={`translate(0 ${l.y})`}>
-            <path d="M20 8 L60 0 L100 8 L60 16 Z" fill={on ? "rgba(96,165,250,0.45)" : "rgba(255,255,255,0.06)"} stroke={on ? "#93c5fd" : "rgba(255,255,255,0.35)"} strokeWidth="1" />
+          <g key={l.id} transform={`translate(${l.x} ${l.y})`}>
+            <path
+              d={l.id === "PL" ? "M66 8 L94 3 L122 8 L94 13 Z" : "M8 8 L48 0 L88 8 L48 16 Z"}
+              fill={on ? "rgba(96,165,250,0.45)" : "rgba(255,255,255,0.06)"}
+              stroke={on ? "#93c5fd" : "rgba(255,255,255,0.35)"}
+              strokeWidth="1"
+            />
           </g>
         );
       })}
-      <circle cx="60" cy="31" r="5" fill="none" stroke="rgba(125,211,252,0.8)" strokeWidth="1.2" />
+      <circle cx="48" cy="28" r="5" fill="none" stroke="rgba(125,211,252,0.8)" strokeWidth="1.2" />
+      <text x="110" y="56" fontSize="7" fill="rgba(255,255,255,0.45)" textAnchor="middle">
+        plant
+      </text>
     </svg>
   );
 }
@@ -342,9 +238,9 @@ export function FloorSelector() {
               aria-checked={on}
               title={f.name}
               onClick={() => setLevel(on ? null : f.id)}
-              className={cls("h-7 w-10 rounded-md text-[12px] font-semibold", on ? "bg-white text-brand ring-2 ring-sky-300" : "text-white/80 hover:bg-white/10")}
+              className={cls("h-7 min-w-10 rounded-md px-1.5 text-[12px] font-semibold", on ? "bg-white text-brand ring-2 ring-sky-300" : "text-white/80 hover:bg-white/10")}
             >
-              {f.id}
+              {f.id === "PL" ? "Plant" : f.id}
             </button>
           );
         })}
@@ -382,31 +278,41 @@ export function IncidentTimelineOverlay() {
   const inc = activeIncidents(sim)[0] ?? [...sim.incidents].reverse()[0];
   if (!inc) return null;
   const events = sim.events.filter((e) => e.incidentId === inc.id);
-  const tone = (k: string) => (k === "fault" || k === "alarm" || k === "status" ? "#d1242f" : k === "stable" ? "#e39a12" : k === "transfer" || k === "backup" || k === "command" ? "#1d6fe0" : "#15803d");
+  const tone = (k: string, sev: string) =>
+    k === "fault" || k === "status" || (k === "alarm" && sev === "critical") ? "#d1242f" : k === "stable" || k === "alarm" ? "#e39a12" : k === "transfer" || k === "backup" || k === "command" ? "#1d6fe0" : "#15803d";
+  const resolved = inc.status === "resolved";
   return (
-    <section aria-label={`${inc.id} timeline`} className="pointer-events-auto rounded-2xl border border-line bg-white/95 shadow-2xl backdrop-blur">
-      <header className="flex items-center justify-between gap-3 px-4 pt-2.5 pb-1">
-        <h2 className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-          Incident Timeline
-          <span className="text-[12px] font-medium text-muted">
-            {inc.id} · simulated time {inc.status === "resolved" && "· resolved"}
-          </span>
+    <section aria-label={`${inc.id} timeline`} className="scene-chip pointer-events-auto w-[360px] max-w-full overflow-hidden rounded-xl text-white shadow-2xl">
+      <header className="flex items-center gap-2 px-3 pt-2 pb-1.5">
+        <span aria-hidden className={cls("size-2 shrink-0 rounded-full", resolved ? "bg-emerald-400" : "pulse-crit bg-red-500")} />
+        <h2 className="min-w-0 flex-1 truncate text-[12.5px] font-semibold">
+          Incident timeline <span className="font-normal text-white/60">· {inc.id}{resolved ? " · resolved" : ""}</span>
         </h2>
-        <button onClick={() => setShow(!show)} aria-expanded={show} className="rounded-md px-2 py-1 text-[12px] font-medium text-muted hover:bg-slate-100">
-          {show ? "Hide" : "Show"}
+        <button onClick={() => setShow(!show)} aria-expanded={show} aria-label={show ? "Collapse incident timeline" : "Expand incident timeline"} className="grid size-6 place-items-center rounded-md text-white/70 hover:bg-white/10 hover:text-white">
+          <ChevronDown aria-hidden className={cls("size-4 transition-transform", !show && "rotate-180")} />
         </button>
       </header>
-      {show && (
-        <ol className="scroll-thin grid max-h-[120px] grid-flow-col grid-rows-3 gap-x-8 gap-y-0.5 overflow-x-auto px-4 pb-2.5">
-          {events.map((e) => (
-            <li key={e.id} className="flex min-w-0 items-center gap-2.5 text-[13px]" title={e.detail}>
-              <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: tone(e.kind) }} />
-              <span className="tabular w-11 shrink-0 font-semibold text-ink">{hm(e.t)}</span>
-              <span className="truncate text-ink-2">{e.title}</span>
-            </li>
-          ))}
-        </ol>
-      )}
+      {show && <TimelineList events={events} tone={tone} />}
     </section>
+  );
+}
+
+/** Newest events at the bottom; the list stays scrolled to the latest one. */
+function TimelineList({ events, tone }: { events: SimEvent[]; tone: (k: string, sev: string) => string }) {
+  const ref = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [events.length]);
+  return (
+    <ol ref={ref} className="scroll-thin max-h-[104px] space-y-0.5 overflow-y-auto border-t border-white/10 px-3 pt-1.5 pb-2">
+      {events.map((e) => (
+        <li key={e.id} className="flex min-w-0 items-center gap-2 text-[12px] leading-5" title={e.detail}>
+          <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: tone(e.kind, e.severity) }} />
+          <span className="tabular w-10 shrink-0 font-semibold">{hm(e.t)}</span>
+          <span className="truncate text-white/80">{e.title}</span>
+        </li>
+      ))}
+    </ol>
   );
 }

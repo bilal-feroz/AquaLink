@@ -90,6 +90,26 @@ body {
   -webkit-backdrop-filter: blur(6px);
 }
 
+.scene-pill {
+  background: linear-gradient(180deg, rgba(16, 26, 44, 0.86), rgba(8, 14, 27, 0.86));
+  border: 1px solid rgba(148, 197, 255, 0.18);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.scene-pill-alert {
+  animation: pill-alert 1.8s ease-in-out infinite;
+}
+
+@keyframes pill-alert {
+  50% {
+    filter: brightness(1.18);
+  }
+}
+
 .scene-chip {
   background: rgba(8, 15, 28, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.1);

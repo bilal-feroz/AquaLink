@@ -56,7 +56,7 @@ function IncidentDetail({ inc }: { inc: IncidentRuntime }) {
             <Button
               icon={Box}
               onClick={() => {
-                a.setMode("incident");
+                a.setMode("operations");
                 a.select(inc.rootAssetId);
               }}
             >
@@ -82,7 +82,7 @@ function IncidentDetail({ inc }: { inc: IncidentRuntime }) {
           <div className="rounded-xl border border-line p-3">
             <div className="text-[12px] font-semibold text-muted uppercase">Source equipment</div>
             <div className="mt-1 flex items-center justify-between gap-2">
-              <button onClick={() => (a.setSection("facility"), a.setMode("incident"), a.select(root.id))} className="text-[13.5px] font-semibold text-brand hover:underline">
+              <button onClick={() => (a.setSection("facility"), a.setMode("operations"), a.select(root.id))} className="text-[13.5px] font-semibold text-brand hover:underline">
                 {root.name}
               </button>
               <StatusBadge size="sm" info={pumpStatusInfo(sim.pumps[root.id])} />

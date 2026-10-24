@@ -34,7 +34,7 @@ export const FLOORS: Floor[] = [
   { id: "L3", name: "Level 3 — Upper Gallery", elevation: 12, description: "Upper viewing gallery and Coral Lagoon exhibit", publicAccess: true },
   { id: "L2", name: "Level 2 — Reef Gallery", elevation: 6, description: "Reef gallery balconies with Indo-Pacific and Mangrove exhibits", publicAccess: true },
   { id: "L1", name: "Level 1 — Atrium", elevation: 0, description: "Main atrium, Open Ocean showcase, Seagrass and Anemone exhibits", publicAccess: true },
-  { id: "B1", name: "B1 — Life Support Plant", elevation: -6, description: "Restricted maintenance level: pumps, filtration and distribution headers", publicAccess: false },
+  { id: "PL", name: "Life Support Plant — back of house", elevation: -2, description: "Restricted plant hall behind the exhibits: pumps, filtration and distribution headers", publicAccess: false },
 ];
 
 export const FLOOR_BY_ID = Object.fromEntries(FLOORS.map((f) => [f.id, f])) as Record<Floor["id"], Floor>;
@@ -49,7 +49,10 @@ export const BUILDING = {
   entranceZ: 30,
   roof: 18,
   slab: 0.5,
-  plant: { minX: -24, maxX: 24, minZ: -14, maxZ: 12, floor: -6, ceiling: -0.5 },
+  /** Back-of-house life-support hall directly behind the atrium's back wall. */
+  plant: { minX: -24, maxX: 24, minZ: -37, maxZ: -16.4, floor: -2 },
+  /** Service void under the atrium floor that carries the supply and return mains. */
+  voidFloor: -2,
   /** Gallery decks (balconies) wrapping the atrium void. */
   decks: {
     L2: { y: 6, left: { minX: -24, maxX: -9, minZ: -16, maxZ: 2 }, right: { minX: 9, maxX: 24, minZ: -16, maxZ: 2 }, back: { minX: -9, maxX: 9, minZ: -16, maxZ: -10.5 } },
@@ -69,11 +72,6 @@ export const BUILDING = {
     [3.5, -12.5],
   ] as [number, number][],
   columnRadius: 0.36,
-  /** Service shafts that hide the risers feeding the upper-level exhibits. */
-  shafts: [
-    { id: "SHAFT-W", minX: -24, maxX: -21.3, minZ: -6.2, maxZ: -2.8, top: 6 },
-    { id: "SHAFT-E", minX: 21.6, maxX: 24, minZ: -10.2, maxZ: -0.6, top: 18 },
-  ],
 };
 
 export const TANKS: TankConfig[] = [
@@ -233,8 +231,8 @@ export const PUMPS: PumpConfig[] = [
     id: "PMP-C1",
     code: "C-1",
     name: "Circulation Pump C-1",
-    floor: "B1",
-    position: [-9, -6, 5.5],
+    floor: "PL",
+    position: [-9, -2, -25],
     suctionSide: -1,
     ratedFlow: 900,
     role: "primary",
@@ -249,8 +247,8 @@ export const PUMPS: PumpConfig[] = [
     id: "PMP-C2",
     code: "C-2",
     name: "Circulation Pump C-2",
-    floor: "B1",
-    position: [5, -6, 5.5],
+    floor: "PL",
+    position: [5, -2, -25],
     suctionSide: 1,
     ratedFlow: 420,
     role: "primary",
@@ -265,8 +263,8 @@ export const PUMPS: PumpConfig[] = [
     id: "PMP-C3",
     code: "C-3",
     name: "Circulation Pump C-3",
-    floor: "B1",
-    position: [17, -6, 5.5],
+    floor: "PL",
+    position: [17, -2, -25],
     suctionSide: -1,
     ratedFlow: 300,
     role: "backup",
@@ -282,22 +280,22 @@ export const PUMPS: PumpConfig[] = [
 ];
 
 export const FILTERS: FilterConfig[] = [
-  { id: "FLT-1", code: "F-1", name: "Sand Filter F-1", floor: "B1", position: [-14, -6, 0.5], radius: 1.2, height: 3.4, media: "Graded silica sand", loopId: "LOOP-1" },
-  { id: "FLT-2", code: "F-2", name: "Sand Filter F-2", floor: "B1", position: [13, -6, 0.5], radius: 1.2, height: 3.4, media: "Graded silica sand", loopId: "LOOP-2" },
+  { id: "FLT-1", code: "F-1", name: "Sand Filter F-1", floor: "PL", position: [-14, -2, -30], radius: 1.2, height: 3.4, media: "Graded silica sand", loopId: "LOOP-1", capacity: 1000 },
+  { id: "FLT-2", code: "F-2", name: "Sand Filter F-2", floor: "PL", position: [13, -2, -30], radius: 1.2, height: 3.4, media: "Graded silica sand", loopId: "LOOP-2", capacity: 450 },
 ];
 
 export const VALVES: ValveConfig[] = [
-  { id: "V-101", code: "V-101", name: "C-1 discharge isolation", floor: "B1", position: [-9.95, -3.1, 5.5], axis: "y", type: "isolation", normallyOpen: true, diameter: 250 },
-  { id: "V-102", code: "V-102", name: "Tank A balancing valve", floor: "B1", position: [-3, -1.5, 4.5], axis: "z", type: "balancing", normallyOpen: true, diameter: 200 },
-  { id: "V-103", code: "V-103", name: "Tank D balancing valve", floor: "B1", position: [-22, -1.5, 4], axis: "z", type: "balancing", normallyOpen: true, diameter: 100 },
-  { id: "V-104", code: "V-104", name: "Tank E balancing valve", floor: "B1", position: [6, -1.5, 10.5], axis: "x", type: "balancing", normallyOpen: true, diameter: 100 },
-  { id: "V-105", code: "V-105", name: "Tank F balancing valve", floor: "B1", position: [-14.5, -1.5, 6.9], axis: "z", type: "balancing", normallyOpen: true, diameter: 100 },
-  { id: "V-201", code: "V-201", name: "C-2 discharge check / isolation", floor: "B1", position: [5.95, -3.1, 5.5], axis: "y", type: "check", normallyOpen: true, diameter: 200 },
-  { id: "V-202", code: "V-202", name: "Tank B balancing valve", floor: "B1", position: [9, -2.2, 3], axis: "z", type: "balancing", normallyOpen: true, diameter: 150 },
-  { id: "V-203", code: "V-203", name: "Tank C balancing valve", floor: "B1", position: [11, -2.2, 3], axis: "z", type: "balancing", normallyOpen: true, diameter: 150 },
-  { id: "V-301", code: "V-301", name: "C-3 auto-transfer valve (normally closed)", floor: "B1", position: [16.05, -3.1, 5.5], axis: "y", type: "auto-transfer", normallyOpen: false, diameter: 150 },
-  { id: "V-110", code: "V-110", name: "Loop 1 return isolation", floor: "B1", position: [-14, -1.75, 0.1], axis: "y", type: "isolation", normallyOpen: true, diameter: 250 },
-  { id: "V-210", code: "V-210", name: "Loop 2 return isolation", floor: "B1", position: [13, -1.75, 0], axis: "z", type: "isolation", normallyOpen: true, diameter: 200 },
+  { id: "V-101", code: "V-101", name: "C-1 discharge isolation", floor: "PL", position: [-9.95, 0.9, -25], axis: "y", type: "isolation", normallyOpen: true, diameter: 250 },
+  { id: "V-102", code: "V-102", name: "Tank A balancing valve", floor: "PL", position: [-2, 2.5, -20.5], axis: "z", type: "balancing", normallyOpen: true, diameter: 200 },
+  { id: "V-103", code: "V-103", name: "Tank D balancing valve", floor: "PL", position: [-18.5, 2.5, -20.5], axis: "z", type: "balancing", normallyOpen: true, diameter: 100 },
+  { id: "V-104", code: "V-104", name: "Tank E balancing valve", floor: "PL", position: [0, 0.8, -21.5], axis: "y", type: "balancing", normallyOpen: true, diameter: 100 },
+  { id: "V-105", code: "V-105", name: "Tank F balancing valve", floor: "PL", position: [-14.5, 2.5, -20.5], axis: "z", type: "balancing", normallyOpen: true, diameter: 100 },
+  { id: "V-201", code: "V-201", name: "C-2 discharge check / isolation", floor: "PL", position: [5.95, 0.9, -25], axis: "y", type: "check", normallyOpen: true, diameter: 200 },
+  { id: "V-202", code: "V-202", name: "Tank B balancing valve", floor: "PL", position: [9, 1.8, -20.8], axis: "z", type: "balancing", normallyOpen: true, diameter: 150 },
+  { id: "V-203", code: "V-203", name: "Tank C balancing valve", floor: "PL", position: [11, 1.8, -20.3], axis: "z", type: "balancing", normallyOpen: true, diameter: 150 },
+  { id: "V-301", code: "V-301", name: "C-3 auto-transfer valve (normally closed)", floor: "PL", position: [16.05, 0.9, -25], axis: "y", type: "auto-transfer", normallyOpen: false, diameter: 150 },
+  { id: "V-110", code: "V-110", name: "Loop 1 return isolation", floor: "PL", position: [-14, 0.2, -34.6], axis: "y", type: "isolation", normallyOpen: true, diameter: 250 },
+  { id: "V-210", code: "V-210", name: "Loop 2 return isolation", floor: "PL", position: [13, 0.2, -32.6], axis: "y", type: "isolation", normallyOpen: true, diameter: 200 },
 ];
 
 export const JUNCTIONS: JunctionConfig[] = [
@@ -305,12 +303,12 @@ export const JUNCTIONS: JunctionConfig[] = [
     id: "HDR-1",
     code: "HDR-1",
     name: "Loop 1 distribution header",
-    floor: "B1",
-    position: [-9.95, -1.5, 8],
+    floor: "PL",
+    position: [-9.95, 2.5, -22.5],
     kind: "supply-header",
     manifold: [
-      [-18.5, -1.5, 8],
-      [-2, -1.5, 8],
+      [-18.5, 2.5, -22.5],
+      [0, 2.5, -22.5],
     ],
     // Weighted by design flow so every Loop 1 tank reaches design together.
     branchWeights: { "V-102": 480, "V-103": 120, "V-104": 130, "V-105": 110 },
@@ -319,36 +317,40 @@ export const JUNCTIONS: JunctionConfig[] = [
     id: "HDR-2",
     code: "HDR-2",
     name: "Loop 2 distribution header",
-    floor: "B1",
-    position: [11, -2.2, 8],
+    floor: "PL",
+    position: [11, 1.8, -22.5],
     kind: "supply-header",
     manifold: [
-      [5.95, -2.2, 8],
-      [16.05, -2.2, 8],
+      [5.95, 1.8, -22.5],
+      [16.05, 1.8, -22.5],
     ],
     // Balancing valves V-202 / V-203 are set for an equal split of header flow.
     branchWeights: { "V-202": 1, "V-203": 1 },
   },
-  { id: "SH-2", code: "SH-2", name: "Loop 2 suction tee", floor: "B1", position: [13, -5.15, 3.2], kind: "suction-tee" },
+  { id: "SH-2", code: "SH-2", name: "Loop 2 suction tee", floor: "PL", position: [13, -1.15, -27.3], kind: "suction-tee" },
   {
     id: "RH-1",
     code: "RH-1",
     name: "Loop 1 return collector",
-    floor: "B1",
-    position: [-14, -0.95, 0.1],
+    floor: "PL",
+    position: [-14, -1.7, -34.6],
     kind: "return-header",
     manifold: [
-      [-14, -0.95, -0.7],
-      [-14, -0.95, 0.9],
+      [-17.2, -1.7, -34.6],
+      [22.2, -1.7, -34.6],
     ],
   },
   {
     id: "RH-2",
     code: "RH-2",
     name: "Loop 2 return collector",
-    floor: "B1",
-    position: [13, -0.95, -1.5],
+    floor: "PL",
+    position: [13, -1.7, -32.6],
     kind: "return-header",
+    manifold: [
+      [13, -1.7, -32.6],
+      [20.4, -1.7, -32.6],
+    ],
   },
 ];
 
@@ -417,41 +419,47 @@ export const EDGES: EdgeConfig[] = [
  * the graph says *what* is connected, these polylines say *where* the pipe runs.
  */
 export const PIPE_ROUTES: PipeRoute[] = [
-  { edgeId: "LN-01", points: [[-14, -5.15, 1.75], [-14, -5.15, 5.5], [-10.6, -5.15, 5.5]] },
-  { edgeId: "LN-02", points: [[13, -5.15, 1.75], [13, -5.15, 3.2]] },
-  { edgeId: "LN-03", points: [[13, -5.15, 3.2], [8, -5.15, 3.2], [8, -5.15, 5.5], [6.6, -5.15, 5.5]] },
-  { edgeId: "LN-04", points: [[13, -5.15, 3.2], [14.4, -5.15, 3.2], [14.4, -5.15, 5.5], [15.4, -5.15, 5.5]] },
+  // Plant hall: filters → pumps (suction side), floor at y = −2.
+  { edgeId: "LN-01", points: [[-14, -1.15, -28.75], [-14, -1.15, -25], [-10.6, -1.15, -25]] },
+  { edgeId: "LN-02", points: [[13, -1.15, -28.75], [13, -1.15, -27.3]] },
+  { edgeId: "LN-03", points: [[13, -1.15, -27.3], [8, -1.15, -27.3], [8, -1.15, -25], [6.6, -1.15, -25]] },
+  { edgeId: "LN-04", points: [[13, -1.15, -27.3], [14.4, -1.15, -27.3], [14.4, -1.15, -25], [15.4, -1.15, -25]] },
 
-  { edgeId: "LN-11", points: [[-9.95, -4.1, 5.5], [-9.95, -3.1, 5.5]] },
-  { edgeId: "LN-12", points: [[-9.95, -3.1, 5.5], [-9.95, -1.5, 5.5], [-9.95, -1.5, 8]] },
-  { edgeId: "LN-13", points: [[-3, -1.5, 8], [-3, -1.5, 4.5]] },
-  { edgeId: "LN-14", points: [[-3, -1.5, 4.5], [-3, -1.5, -1.8], [-3, 0.6, -1.8]] },
-  { edgeId: "LN-15", points: [[-18.5, -1.5, 8], [-22, -1.5, 8], [-22, -1.5, 4]] },
-  { edgeId: "LN-16", points: [[-22, -1.5, 4], [-22, -1.5, -5], [-22, 5.1, -5], [-15.5, 5.1, -5], [-15.5, 6.5, -5]] },
-  { edgeId: "LN-17", points: [[-2, -1.5, 8], [-2, -1.5, 10.5], [6, -1.5, 10.5]] },
-  { edgeId: "LN-18", points: [[6, -1.5, 10.5], [14.5, -1.5, 10.5], [14.5, -1.5, 6.5], [14.5, 0.5, 6.5]] },
-  { edgeId: "LN-19", points: [[-14.5, -1.5, 8], [-14.5, -1.5, 6.9]] },
-  { edgeId: "LN-20", points: [[-14.5, -1.5, 6.9], [-14.5, -1.5, 5.5], [-14.5, 0.5, 5.5]] },
+  // Pump discharges up to the overhead headers.
+  { edgeId: "LN-11", points: [[-9.95, -0.1, -25], [-9.95, 0.9, -25]] },
+  { edgeId: "LN-12", points: [[-9.95, 0.9, -25], [-9.95, 2.5, -25], [-9.95, 2.5, -22.5]] },
+  { edgeId: "LN-21", points: [[5.95, -0.1, -25], [5.95, 0.9, -25]] },
+  { edgeId: "LN-22", points: [[5.95, 0.9, -25], [5.95, 1.8, -25], [5.95, 1.8, -22.5]] },
+  { edgeId: "LN-23", points: [[16.05, -0.1, -25], [16.05, 0.9, -25]] },
+  { edgeId: "LN-24", points: [[16.05, 0.9, -25], [16.05, 1.8, -25], [16.05, 1.8, -22.5]] },
 
-  { edgeId: "LN-21", points: [[5.95, -4.1, 5.5], [5.95, -3.1, 5.5]] },
-  { edgeId: "LN-22", points: [[5.95, -3.1, 5.5], [5.95, -2.2, 5.5], [5.95, -2.2, 8]] },
-  { edgeId: "LN-23", points: [[16.05, -4.1, 5.5], [16.05, -3.1, 5.5]] },
-  { edgeId: "LN-24", points: [[16.05, -3.1, 5.5], [16.05, -2.2, 5.5], [16.05, -2.2, 8]] },
-  { edgeId: "LN-25", points: [[9, -2.2, 8], [9, -2.2, 3]] },
-  { edgeId: "LN-26", points: [[9, -2.2, 3], [9, -2.2, -9], [22.3, -2.2, -9], [22.3, 11.1, -9], [15, 11.1, -9], [15, 12.5, -9]] },
-  { edgeId: "LN-27", points: [[11, -2.2, 8], [11, -2.2, 3]] },
-  { edgeId: "LN-28", points: [[11, -2.2, 3], [11, -2.2, -2.5], [22.3, -2.2, -2.5], [22.3, 5.1, -2.5], [15.5, 5.1, -2.5], [15.5, 6.5, -2.5]] },
+  // Loop 1 branches: ground-floor tanks via the under-floor void, Tank D via the L2 deck soffit.
+  { edgeId: "LN-13", points: [[-2, 2.5, -22.5], [-2, 2.5, -20.5]] },
+  { edgeId: "LN-14", points: [[-2, 2.5, -20.5], [-2, 2.5, -19], [-2, -1, -19], [-2, -1, -5], [-2, 0.6, -5]] },
+  { edgeId: "LN-15", points: [[-18.5, 2.5, -22.5], [-18.5, 2.5, -20.5]] },
+  { edgeId: "LN-16", points: [[-18.5, 2.5, -20.5], [-18.5, 2.5, -18.5], [-18.5, 5.1, -18.5], [-15.5, 5.1, -18.5], [-15.5, 5.1, -5], [-15.5, 6.5, -5]] },
+  { edgeId: "LN-17", points: [[0, 2.5, -22.5], [0, 2.5, -21.5], [0, 0.8, -21.5]] },
+  { edgeId: "LN-18", points: [[0, 0.8, -21.5], [0, -1, -21.5], [14.5, -1, -21.5], [14.5, -1, 6.5], [14.5, 0.5, 6.5]] },
+  { edgeId: "LN-19", points: [[-14.5, 2.5, -22.5], [-14.5, 2.5, -20.5]] },
+  { edgeId: "LN-20", points: [[-14.5, 2.5, -20.5], [-14.5, 2.5, -19], [-14.5, -1, -19], [-14.5, -1, 5.5], [-14.5, 0.5, 5.5]] },
 
-  { edgeId: "LN-31", points: [[2.5, 0.6, -0.3], [2.5, -0.95, -0.3], [-14, -0.95, -0.3]] },
-  { edgeId: "LN-32", points: [[-14.2, 6.5, -4], [-14.2, 4.7, -4], [-23, 4.7, -4], [-23, -0.95, -4], [-23, -0.95, -0.7], [-14, -0.95, -0.7]] },
-  { edgeId: "LN-33", points: [[14.5, 0.5, 5.2], [14.5, -0.95, 5.2], [14.5, -0.95, 0.9], [-14, -0.95, 0.9]] },
-  { edgeId: "LN-34", points: [[-13.2, 0.5, 4.2], [-13.2, -0.95, 4.2], [-13.2, -0.95, 0.1], [-14, -0.95, 0.1]] },
-  { edgeId: "LN-35", points: [[-14, -0.95, 0.1], [-14, -1.75, 0.1]] },
-  { edgeId: "LN-36", points: [[-14, -1.75, 0.1], [-14, -2.55, 0.1]] },
-  { edgeId: "LN-37", points: [[16.3, 12.5, -8], [16.3, 10.7, -8], [23, 10.7, -8], [23, -0.95, -8], [13, -0.95, -8], [13, -0.95, -1.5]] },
-  { edgeId: "LN-38", points: [[16.7, 6.5, -1.5], [16.7, 4.7, -1.5], [23, 4.7, -1.5], [23, -0.95, -1.5], [13, -0.95, -1.5]] },
-  { edgeId: "LN-39", points: [[13, -0.95, -1.5], [13, -1.75, -1.5], [13, -1.75, 0]] },
-  { edgeId: "LN-40", points: [[13, -1.75, 0], [13, -1.75, 0.5], [13, -2.55, 0.5]] },
+  // Loop 2 branches: risers in the plant hall, then under the L2 / L3 deck soffits.
+  { edgeId: "LN-25", points: [[9, 1.8, -22.5], [9, 1.8, -20.8]] },
+  { edgeId: "LN-26", points: [[9, 1.8, -20.8], [9, 1.8, -19], [9, 11.1, -19], [15, 11.1, -19], [15, 11.1, -9], [15, 12.5, -9]] },
+  { edgeId: "LN-27", points: [[11, 1.8, -22.5], [11, 1.8, -20.3]] },
+  { edgeId: "LN-28", points: [[11, 1.8, -20.3], [11, 1.8, -18], [11, 5.1, -18], [15.5, 5.1, -18], [15.5, 5.1, -2.5], [15.5, 6.5, -2.5]] },
+
+  // Returns run back under the floor / deck soffits to the collectors behind the filters.
+  { edgeId: "LN-31", points: [[2.5, 0.6, -4.5], [2.5, -1.7, -4.5], [2.5, -1.7, -34.6]] },
+  { edgeId: "LN-32", points: [[-17.2, 6.5, -6.2], [-17.2, 4.7, -6.2], [-17.2, 4.7, -18], [-17.2, -1.7, -18], [-17.2, -1.7, -34.6]] },
+  { edgeId: "LN-33", points: [[16.9, 0.5, 6.1], [16.9, -1.7, 6.1], [22.2, -1.7, 6.1], [22.2, -1.7, -34.6]] },
+  { edgeId: "LN-34", points: [[-11.8, 0.5, 4.6], [-11.8, -1.7, 4.6], [-11.8, -1.7, -34.6]] },
+  { edgeId: "LN-35", points: [[-14, -1.7, -34.6], [-14, 0.2, -34.6]] },
+  { edgeId: "LN-36", points: [[-14, 0.2, -34.6], [-14, 2.6, -34.6], [-14, 2.6, -30], [-14, 1.7, -30]] },
+  { edgeId: "LN-37", points: [[16.6, 12.5, -7.6], [16.6, 10.7, -7.6], [16.6, 10.7, -18.5], [19, 10.7, -18.5], [19, -1.7, -18.5], [19, -1.7, -32.6]] },
+  { edgeId: "LN-38", points: [[17.2, 6.5, -1.6], [17.2, 4.7, -1.6], [17.2, 4.7, -17.5], [20.4, 4.7, -17.5], [20.4, -1.7, -17.5], [20.4, -1.7, -32.6]] },
+  { edgeId: "LN-39", points: [[13, -1.7, -32.6], [13, 0.2, -32.6]] },
+  { edgeId: "LN-40", points: [[13, 0.2, -32.6], [13, 2.6, -32.6], [13, 2.6, -30], [13, 1.7, -30]] },
 ];
 
 function tankSensors(t: TankConfig): SensorConfig[] {

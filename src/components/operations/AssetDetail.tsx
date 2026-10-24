@@ -75,7 +75,10 @@ function statusFor(sim: SimState, id: string): { info: StatusInfo; subtitle: str
     return { info: { tone, label: FLOW_VISUAL_LABEL[v], icon: tone === "crit" ? "alert" : tone === "off" ? "pause" : "check" }, subtitle: `${e.kind} line · DN${e.diameter}` };
   }
   if (a.kind === "filter") {
-    const flow = sim.nodeFlow[id] ?? 0;
+    const fr = filterReading(sim, id);
+    if (fr.backwashing) return { info: { tone: "info", label: "Backwashing", icon: "spinner" }, subtitle: FILTER_BY_ID[id].media };
+    if (fr.clogPct > 2) return { info: { tone: "crit", label: "Blocked", icon: "alert" }, subtitle: "Media blockage" };
+    const flow = fr.flow;
     return { info: { tone: flow > 1 ? "ok" : "off", label: flow > 1 ? "In service" : "No flow", icon: flow > 1 ? "check" : "pause" }, subtitle: FILTER_BY_ID[id].media };
   }
   if (a.kind === "sensor") {
@@ -245,6 +248,49 @@ function PumpOverview({ id, sim }: { id: string; sim: SimState }) {
         <Row icon={ShieldCheck} label="Duty">
           <span className="font-medium text-ink">Backup for {PUMPS.filter((x) => x.loopId === cfg.loopId && x.role === "primary").map((x) => x.code).join(", ")}</span>
           <p className="text-[12px] text-muted">Runs at {Math.round((cfg.backupOutputFraction ?? 1) * 100)}% of rated output ({Math.round((cfg.backupOutputFraction ?? 1) * cfg.ratedFlow)} m³/h) when covering.</p>
+        </Row>
+      )}
+      {inc && <RecommendedActions incidentId={inc.id} />}
+    </div>
+  );
+}
+
+function FilterOverview({ id, sim }: { id: string; sim: SimState }) {
+  const f = FILTER_BY_ID[id];
+  const fr = filterReading(sim, id);
+  const inc = incidentFor(sim, id);
+  const isRoot = inc?.rootAssetId === id;
+  const tanks = downstreamTanks(id);
+  const blocked = fr.clogPct > 2;
+  return (
+    <div>
+      <Row icon={LayoutGrid} label="Status">
+        <StatusBadge info={fr.backwashing ? { tone: "info", label: "Backwashing", icon: "spinner" } : blocked ? { tone: "crit", label: `Bed ${Math.round(fr.clogPct)}% blocked`, icon: "alert" } : { tone: "ok", label: "In service", icon: "check" }} />
+        <div className="tabular mt-1 text-[12px] text-muted">
+          ΔP {fr.dpKpa.toFixed(1)} kPa · {Math.round(fr.flow)} m³/h · capacity {Math.round(f.capacity * (1 - fr.clogPct / 100))} of {f.capacity} m³/h
+        </div>
+      </Row>
+      <Row icon={Users} label="Affects">
+        <div className="font-medium text-ink">
+          {(isRoot ? inc!.affectedTankIds : tanks).length} {isRoot ? "tanks with reduced flow" : "downstream tanks"}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {(isRoot ? inc!.affectedTankIds : tanks).map((t) => (
+            <AssetChip key={t} id={t} tone={sim.tanks[t].status === "healthy" ? undefined : sim.tanks[t].status === "degraded" ? "warn" : "crit"} />
+          ))}
+        </div>
+      </Row>
+      {isRoot && inc && (
+        <Row icon={Info} label="Root Cause">
+          <span className="font-medium text-ink">{inc.diagnosis.label}</span>{" "}
+          <span className="ml-1 rounded bg-slate-100 px-1.5 py-px text-[10.5px] font-semibold text-ink-2 uppercase">{inc.diagnosis.confidence}</span>
+          <p className="mt-1 text-[12px] leading-snug text-muted">{inc.diagnosis.evidence}</p>
+        </Row>
+      )}
+      {isRoot && inc && (
+        <Row icon={ShieldCheck} label="Backup">
+          <span className="font-medium text-ink">No standby filter on this loop</span>
+          <p className="text-[12px] text-muted">Pump C-1 keeps running at the reduced throughput the bed allows. Recovery: backwash F-1.</p>
         </Row>
       )}
       {inc && <RecommendedActions incidentId={inc.id} />}
@@ -566,7 +612,7 @@ export function AssetDetail({ id }: { id: string }) {
         <Tabs tabs={TABS} value={tab} onChange={setTab} label={`${a.name} details`} />
       </div>
       <div className="px-4 pb-4" role="tabpanel" aria-label={TABS.find((t) => t.id === tab)?.label}>
-        {tab === "overview" && (a.kind === "pump" ? <PumpOverview id={id} sim={sim} /> : a.kind === "tank" ? <TankOverview id={id} sim={sim} /> : <GenericOverview id={id} sim={sim} />)}
+        {tab === "overview" && (a.kind === "pump" ? <PumpOverview id={id} sim={sim} /> : a.kind === "tank" ? <TankOverview id={id} sim={sim} /> : a.kind === "filter" ? <FilterOverview id={id} sim={sim} /> : <GenericOverview id={id} sim={sim} />)}
         {tab === "live" && <LiveData id={id} sim={sim} />}
         {tab === "connections" && <Connections id={id} sim={sim} />}
         {tab === "history" && <History id={id} sim={sim} />}

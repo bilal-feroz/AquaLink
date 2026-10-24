@@ -1,10 +1,14 @@
 "use client";
 
+import { MeshReflectorMaterial } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BUILDING, FILTERS, PUMPS, TANKS } from "@/lib/data/facility";
-import { rng, treeGeometry } from "./geometry";
-import { ghostMaterial, releaseGhost } from "./ghost";
+import { useAppStore } from "@/store/useAppStore";
+import { treeGeometry } from "./geometry";
+import { WALLS, ghostMaterial, releaseGhost, type Cutaway } from "./ghost";
+import { sceneFx } from "./sceneFx";
 
 type Box = { min: [number, number, number]; max: [number, number, number] };
 
@@ -14,27 +18,38 @@ function boxProps(b: Box) {
   return { size, pos };
 }
 
+const P = BUILDING.plant;
+
+function wallMat(color: string, cutaway: Cutaway, ghost = 0.05) {
+  return ghostMaterial(new THREE.MeshStandardMaterial({ color, roughness: 0.75 }), { ghost, cutaway });
+}
+
 function useArchMaterials() {
   const mats = useMemo(() => {
     const m = {
-      floor: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#2f333a", roughness: 0.34, metalness: 0.05, envMapIntensity: 0.55 }), { ghost: 0.08 }),
-      inlay: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#b8a27a", roughness: 0.35, metalness: 0.6 }), { ghost: 0.0 }),
-      deck: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#dcd6cc", roughness: 0.55, metalness: 0.05 }), { ghost: 0.1 }),
-      fascia: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#f3efe8", roughness: 0.4 }), { ghost: 0.12 }),
-      cove: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#ffc58a"), emissiveIntensity: 2.4 }), { ghost: 0.0 }),
+      floor: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#272b33", roughness: 0.32, metalness: 0.1, envMapIntensity: 0.6 }), { ghost: 0.08 }),
+      inlay: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#c9a96e", roughness: 0.3, metalness: 0.75, emissive: new THREE.Color("#3a2a10"), emissiveIntensity: 0.4 }), { ghost: 0.0 }),
+      deck: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#e4ddd1", roughness: 0.5, metalness: 0.05 }), { ghost: 0.1 }),
+      fascia: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#f6f2ea", roughness: 0.35 }), { ghost: 0.12 }),
+      cove: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#ffc184"), emissiveIntensity: 3.2 }), { ghost: 0.0 }),
       glassRail: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#cfe9ff", roughness: 0.05, metalness: 0.1, opacity: 0.16, side: THREE.DoubleSide }), { base: 0.16, ghost: 0.0, alwaysTransparent: true }),
-      handrail: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#b38c58", roughness: 0.3, metalness: 0.85 }), { ghost: 0.15 }),
-      column: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#c9c2b6", roughness: 0.55, envMapIntensity: 0.6 }), { ghost: 0.1 }),
-      wall: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#3a3532", roughness: 0.7 }), { ghost: 0.05 }),
-      wallPanel: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#ffb36b"), emissiveIntensity: 1.25 }), { ghost: 0.0 }),
-      ceiling: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#16181d", roughness: 0.8, side: THREE.DoubleSide }), { ghost: 0.0 }),
-      downlight: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#fff1d6"), emissiveIntensity: 3 }), { ghost: 0.0 }),
-      skylight: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#bfe6ff"), emissiveIntensity: 2.2 }), { ghost: 0.0 }),
-      shaft: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#4a4440", roughness: 0.8 }), { ghost: 0.08 }),
+      handrail: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#c49a5c", roughness: 0.28, metalness: 0.9 }), { ghost: 0.15 }),
+      column: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#d6cfc3", roughness: 0.5, envMapIntensity: 0.6 }), { ghost: 0.08 }),
+      columnLight: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#57d6ff"), emissiveIntensity: 2.6 }), { ghost: 0.0 }),
+      wallBack: wallMat("#3b3430", WALLS.back),
+      wallLeft: wallMat("#3b3430", WALLS.left),
+      wallRight: wallMat("#3b3430", WALLS.right),
+      wallRear: wallMat("#2c3036", WALLS.rear, 0.25),
+      wallPanel: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#ffb066"), emissiveIntensity: 1.6 }), { ghost: 0.0, cutaway: WALLS.back }),
+      sidePanelL: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#ffb066"), emissiveIntensity: 1.5 }), { ghost: 0.0, cutaway: WALLS.left }),
+      sidePanelR: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#ffb066"), emissiveIntensity: 1.5 }), { ghost: 0.0, cutaway: WALLS.right }),
+      ceiling: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#14161b", roughness: 0.8, side: THREE.DoubleSide }), { ghost: 0.0, cutaway: WALLS.roof }),
+      downlight: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#fff1d6"), emissiveIntensity: 3.4 }), { ghost: 0.0, cutaway: WALLS.roof }),
+      skylight: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#bfe6ff"), emissiveIntensity: 2.6 }), { ghost: 0.0, cutaway: WALLS.roof }),
       escalator: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#8f98a3", roughness: 0.35, metalness: 0.7 }), { ghost: 0.1 }),
-      leaf: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#2f6b3e", roughness: 0.8, side: THREE.DoubleSide }), { ghost: 0.0 }),
+      leaf: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#2f7a45", roughness: 0.7, side: THREE.DoubleSide }), { ghost: 0.0 }),
       planter: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#3b3631", roughness: 0.6 }), { ghost: 0.0 }),
-      edges: ghostMaterial(new THREE.LineBasicMaterial({ color: "#8fc1ff" }), { ghost: 0.32, engineeringOnly: true }),
+      edges: ghostMaterial(new THREE.LineBasicMaterial({ color: "#7fd3ff" }), { ghost: 0.42, engineeringOnly: true }),
     };
     return m;
   }, []);
@@ -49,6 +64,8 @@ function useArchMaterials() {
   );
   return mats;
 }
+
+type Mats = ReturnType<typeof useArchMaterials>;
 
 function BoxMesh({ b, material, edges, edgeMat }: { b: Box; material: THREE.Material; edges?: boolean; edgeMat?: THREE.Material }) {
   const { size, pos } = boxProps(b);
@@ -82,7 +99,7 @@ function voidEdges(): Edge[] {
   return out;
 }
 
-function Rail({ e, mats }: { e: Edge; mats: ReturnType<typeof useArchMaterials> }) {
+function Rail({ e, mats }: { e: Edge; mats: Mats }) {
   const dx = e.b[0] - e.a[0];
   const dz = e.b[1] - e.a[1];
   const len = Math.hypot(dx, dz);
@@ -96,7 +113,6 @@ function Rail({ e, mats }: { e: Edge; mats: ReturnType<typeof useArchMaterials> 
       <mesh material={mats.handrail} position={[0, 1.08, 0]} rotation={[0, 0, Math.PI / 2]} raycast={() => null}>
         <cylinderGeometry args={[0.045, 0.045, len, 8]} />
       </mesh>
-      {/* Fascia and warm cove light under the deck edge */}
       <mesh material={mats.fascia} position={[0, -0.23, 0]} raycast={() => null}>
         <boxGeometry args={[len, 0.5, 0.12]} />
       </mesh>
@@ -116,11 +132,11 @@ function deckBoxes(): Box[] {
   return out;
 }
 
-function Ceiling({ mats }: { mats: ReturnType<typeof useArchMaterials> }) {
+function Ceiling({ mats }: { mats: Mats }) {
   const geo = useMemo(() => {
     const s = new THREE.Shape();
-    s.moveTo(BUILDING.minX, BUILDING.minZ);
-    s.lineTo(BUILDING.maxX, BUILDING.minZ);
+    s.moveTo(BUILDING.minX, P.minZ);
+    s.lineTo(BUILDING.maxX, P.minZ);
     s.lineTo(BUILDING.maxX, BUILDING.maxZ);
     s.lineTo(BUILDING.minX, BUILDING.maxZ);
     const hole = new THREE.Path();
@@ -152,38 +168,89 @@ function Ceiling({ mats }: { mats: ReturnType<typeof useArchMaterials> }) {
         <cylinderGeometry args={[0.16, 0.16, 0.04, 12]} />
       </instancedMesh>
       <mesh material={mats.skylight} position={[0, BUILDING.roof - 0.05, -3]} rotation={[Math.PI / 2, 0, 0]} raycast={() => null}>
-        <torusGeometry args={[7.2, 0.07, 8, 96]} />
+        <torusGeometry args={[7.2, 0.08, 8, 96]} />
       </mesh>
-      <mesh position={[0, BUILDING.roof + 0.45, -3]} rotation={[Math.PI / 2, 0, 0]} raycast={() => null} material={mats.skylight}>
+      <mesh material={mats.skylight} position={[0, BUILDING.roof + 0.45, -3]} rotation={[Math.PI / 2, 0, 0]} raycast={() => null}>
         <torusGeometry args={[5.4, 0.05, 6, 96]} />
       </mesh>
     </group>
   );
 }
 
-function WallPanels({ mats }: { mats: ReturnType<typeof useArchMaterials> }) {
-  const panels = useMemo(() => {
-    const out: { pos: [number, number, number]; rot: number; w: number; h: number }[] = [];
-    // Back wall gallery openings on L2 / L3, side wall openings on L1.
-    for (const y of [7.6, 13.6]) for (let x = -19.5; x <= 19.5; x += 6.5) out.push({ pos: [x, y, BUILDING.minZ + 0.22], rot: 0, w: 3.4, h: 2.4 });
-    for (const side of [-1, 1]) {
-      for (let z = -12; z <= 10; z += 5.5) out.push({ pos: [side * (BUILDING.maxX - 0.22), 1.6, z], rot: (side * Math.PI) / 2, w: 3.2, h: 2.6 });
-      for (let z = -13; z <= -6; z += 5) out.push({ pos: [side * (BUILDING.maxX - 0.22), 7.7, z], rot: (side * Math.PI) / 2, w: 2.6, h: 2.2 });
-    }
+/** Soft daylight beam falling through the skylight into the showcase. */
+function SkylightBeam() {
+  const mat = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        uniforms: { uTime: { value: 0 }, uOpacity: { value: 1 } },
+        vertexShader: /* glsl */ `
+          varying vec2 vUv; varying vec3 vN; varying vec3 vWorld;
+          void main() { vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vWorld = w.xyz; vN = normalize(mat3(modelMatrix) * normal); gl_Position = projectionMatrix * viewMatrix * w; }
+        `,
+        fragmentShader: /* glsl */ `
+          uniform float uTime; uniform float uOpacity;
+          varying vec2 vUv; varying vec3 vN; varying vec3 vWorld;
+          void main() {
+            vec3 V = normalize(cameraPosition - vWorld);
+            float edge = pow(abs(dot(normalize(vN), V)), 1.5);
+            float streak = 0.75 + 0.25 * sin(vUv.x * 50.0 + uTime * 0.3) * sin(vUv.x * 23.0 - uTime * 0.2);
+            float a = vUv.y * vUv.y * 0.11 * edge * streak * uOpacity;
+            gl_FragColor = vec4(vec3(0.72, 0.88, 1.0) * a, a);
+          }
+        `,
+      }),
+    [],
+  );
+  useEffect(() => () => mat.dispose(), [mat]);
+  useFrame(() => {
+    mat.uniforms.uTime.value = sceneFx.time * sceneFx.motion;
+    mat.uniforms.uOpacity.value = 1 - sceneFx.ghost;
+  });
+  return (
+    <mesh material={mat} position={[0, 16.4, -3]} renderOrder={6} raycast={() => null}>
+      <cylinderGeometry args={[7.0, 5.0, 3.4, 64, 1, true]} />
+    </mesh>
+  );
+}
+
+function WallPanels({ mats }: { mats: Mats }) {
+  const back = useMemo(() => {
+    const out: [number, number, number][] = [];
+    for (const y of [7.6, 13.6]) for (let x = -19.5; x <= 19.5; x += 6.5) out.push([x, y, BUILDING.minZ + 0.22]);
+    return out;
+  }, []);
+  const side = useMemo(() => {
+    const out: { pos: [number, number, number]; w: number; h: number }[] = [];
+    for (let z = -12; z <= 10; z += 5.5) out.push({ pos: [0, 1.6, z], w: 3.2, h: 2.6 });
+    for (let z = -13; z <= -6; z += 5) out.push({ pos: [0, 7.7, z], w: 2.6, h: 2.2 });
     return out;
   }, []);
   return (
     <group>
-      {panels.map((p, i) => (
-        <mesh key={i} material={mats.wallPanel} position={p.pos} rotation={[0, p.rot === 0 ? 0 : -p.rot, 0]} raycast={() => null}>
-          <planeGeometry args={[p.w, p.h]} />
+      {back.map((p, i) => (
+        <mesh key={i} material={mats.wallPanel} position={p} raycast={() => null}>
+          <planeGeometry args={[3.4, 2.4]} />
         </mesh>
+      ))}
+      {side.map((p, i) => (
+        <group key={i}>
+          <mesh material={mats.sidePanelL} position={[BUILDING.minX + 0.22, p.pos[1], p.pos[2]]} rotation={[0, Math.PI / 2, 0]} raycast={() => null}>
+            <planeGeometry args={[p.w, p.h]} />
+          </mesh>
+          <mesh material={mats.sidePanelR} position={[BUILDING.maxX - 0.22, p.pos[1], p.pos[2]]} rotation={[0, -Math.PI / 2, 0]} raycast={() => null}>
+            <planeGeometry args={[p.w, p.h]} />
+          </mesh>
+        </group>
       ))}
     </group>
   );
 }
 
-function Plants({ mats }: { mats: ReturnType<typeof useArchMaterials> }) {
+function Plants({ mats }: { mats: Mats }) {
   const geo = useMemo(() => treeGeometry(5), []);
   const spots: [number, number, number][] = [
     [-21.5, 0, 11],
@@ -208,7 +275,17 @@ function Plants({ mats }: { mats: ReturnType<typeof useArchMaterials> }) {
   );
 }
 
-function Escalator({ from, to, mats }: { from: [number, number, number]; to: [number, number, number]; mats: ReturnType<typeof useArchMaterials> }) {
+export const PLANTERS: [number, number, number][] = [
+  [-21.5, 0, 11],
+  [-18.5, 0, 12.5],
+  [21.5, 0, 11.5],
+  [6.5, 0, 11.5],
+  [-6.5, 0, 11.5],
+  [-21.5, 6, -14],
+  [21.5, 6, -14],
+];
+
+function Escalator({ from, to, mats }: { from: [number, number, number]; to: [number, number, number]; mats: Mats }) {
   const dx = to[0] - from[0];
   const dy = to[1] - from[1];
   const dz = to[2] - from[2];
@@ -223,20 +300,47 @@ function Escalator({ from, to, mats }: { from: [number, number, number]; to: [nu
         <mesh material={mats.escalator} raycast={() => null}>
           <boxGeometry args={[1.4, 0.5, len]} />
         </mesh>
-        <mesh material={mats.glassRail} position={[0.72, 0.6, 0]} raycast={() => null}>
-          <boxGeometry args={[0.04, 0.8, len]} />
-        </mesh>
-        <mesh material={mats.glassRail} position={[-0.72, 0.6, 0]} raycast={() => null}>
-          <boxGeometry args={[0.04, 0.8, len]} />
-        </mesh>
-        <mesh material={mats.handrail} position={[0.72, 1.02, 0]} raycast={() => null}>
-          <boxGeometry args={[0.08, 0.06, len]} />
-        </mesh>
-        <mesh material={mats.handrail} position={[-0.72, 1.02, 0]} raycast={() => null}>
-          <boxGeometry args={[0.08, 0.06, len]} />
-        </mesh>
+        {[0.72, -0.72].map((x) => (
+          <group key={x}>
+            <mesh material={mats.glassRail} position={[x, 0.6, 0]} raycast={() => null}>
+              <boxGeometry args={[0.04, 0.8, len]} />
+            </mesh>
+            <mesh material={mats.handrail} position={[x, 1.02, 0]} raycast={() => null}>
+              <boxGeometry args={[0.08, 0.06, len]} />
+            </mesh>
+          </group>
+        ))}
       </group>
     </group>
+  );
+}
+
+/** Polished atrium floor that reflects the glowing habitats (public view, high quality). */
+function ReflectiveFloor() {
+  const quality = useAppStore((s) => s.quality);
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    if (ref.current) ref.current.visible = sceneFx.ghost < 0.02 && sceneFx.shellVisible > 0.5;
+  });
+  if (quality !== "high") return null;
+  const depth = BUILDING.entranceZ - BUILDING.minZ;
+  return (
+    <mesh ref={ref} position={[0, 0.003, (BUILDING.entranceZ + BUILDING.minZ) / 2]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
+      <planeGeometry args={[BUILDING.maxX - BUILDING.minX, depth]} />
+      <MeshReflectorMaterial
+        blur={[420, 140]}
+        resolution={768}
+        mixBlur={1}
+        mixStrength={3.2}
+        roughness={0.75}
+        depthScale={1.1}
+        minDepthThreshold={0.35}
+        maxDepthThreshold={1.4}
+        color="#3a4250"
+        metalness={0.3}
+        mirror={0.6}
+      />
+    </mesh>
   );
 }
 
@@ -245,15 +349,17 @@ export function Architecture() {
   const edges = useMemo(() => voidEdges(), []);
   const decks = useMemo(() => deckBoxes(), []);
   const tankA = TANKS[0];
+  const fullDepth: [number, number] = [P.minZ, BUILDING.maxZ];
 
   return (
     <group>
-      {/* Level 1 slab (also the ceiling of the B1 plant room) */}
+      {/* Atrium floor slab and entrance plaza */}
       <BoxMesh b={{ min: [BUILDING.minX, -BUILDING.slab, BUILDING.minZ], max: [BUILDING.maxX, 0, BUILDING.entranceZ] }} material={mats.floor} edges edgeMat={mats.edges} />
-      <mesh material={mats.inlay} position={[tankA.position[0], 0.006, tankA.position[2]]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
+      <ReflectiveFloor />
+      <mesh material={mats.inlay} position={[tankA.position[0], 0.008, tankA.position[2]]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
         <ringGeometry args={[tankA.radius + 0.9, tankA.radius + 1.05, 96]} />
       </mesh>
-      <mesh material={mats.inlay} position={[tankA.position[0], 0.006, tankA.position[2]]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
+      <mesh material={mats.inlay} position={[tankA.position[0], 0.008, tankA.position[2]]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
         <ringGeometry args={[tankA.radius + 3.6, tankA.radius + 3.68, 96]} />
       </mesh>
 
@@ -265,24 +371,28 @@ export function Architecture() {
         <Rail key={i} e={e} mats={mats} />
       ))}
 
-      {/* Columns */}
+      {/* Columns with accent light rings */}
       {BUILDING.columns.map(([x, z], i) => (
-        <mesh key={i} material={mats.column} position={[x, BUILDING.roof / 2, z]} raycast={() => null}>
-          <cylinderGeometry args={[BUILDING.columnRadius, BUILDING.columnRadius, BUILDING.roof, 20]} />
-        </mesh>
+        <group key={i} position={[x, 0, z]}>
+          <mesh material={mats.column} position={[0, BUILDING.roof / 2, 0]} raycast={() => null}>
+            <cylinderGeometry args={[BUILDING.columnRadius, BUILDING.columnRadius, BUILDING.roof, 20]} />
+          </mesh>
+          {[0.12, 5.4, 11.4].map((y) => (
+            <mesh key={y} material={mats.columnLight} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={() => null}>
+              <torusGeometry args={[BUILDING.columnRadius + 0.02, 0.025, 6, 32]} />
+            </mesh>
+          ))}
+        </group>
       ))}
 
-      {/* Envelope */}
-      <BoxMesh b={{ min: [BUILDING.minX, -0.5, BUILDING.minZ - 0.4], max: [BUILDING.maxX, BUILDING.roof, BUILDING.minZ] }} material={mats.wall} edges edgeMat={mats.edges} />
-      <BoxMesh b={{ min: [BUILDING.minX - 0.4, -0.5, BUILDING.minZ], max: [BUILDING.minX, BUILDING.roof, BUILDING.maxZ] }} material={mats.wall} edges edgeMat={mats.edges} />
-      <BoxMesh b={{ min: [BUILDING.maxX, -0.5, BUILDING.minZ], max: [BUILDING.maxX + 0.4, BUILDING.roof, BUILDING.maxZ] }} material={mats.wall} edges edgeMat={mats.edges} />
+      {/* Envelope: the back wall separates the atrium from the plant hall */}
+      <BoxMesh b={{ min: [BUILDING.minX, -2.3, BUILDING.minZ - 0.4], max: [BUILDING.maxX, BUILDING.roof, BUILDING.minZ] }} material={mats.wallBack} edges edgeMat={mats.edges} />
+      <BoxMesh b={{ min: [BUILDING.minX - 0.4, -2.3, fullDepth[0]], max: [BUILDING.minX, BUILDING.roof, fullDepth[1]] }} material={mats.wallLeft} edges edgeMat={mats.edges} />
+      <BoxMesh b={{ min: [BUILDING.maxX, -2.3, fullDepth[0]], max: [BUILDING.maxX + 0.4, BUILDING.roof, fullDepth[1]] }} material={mats.wallRight} edges edgeMat={mats.edges} />
+      <BoxMesh b={{ min: [BUILDING.minX, -2.3, P.minZ - 0.4], max: [BUILDING.maxX, BUILDING.roof, P.minZ] }} material={mats.wallRear} edges edgeMat={mats.edges} />
       <WallPanels mats={mats} />
       <Ceiling mats={mats} />
-
-      {/* Service shafts hiding the risers to the upper exhibits */}
-      {BUILDING.shafts.map((s) => (
-        <BoxMesh key={s.id} b={{ min: [s.minX, 0, s.minZ], max: [s.maxX, s.top, s.maxZ] }} material={mats.shaft} edges edgeMat={mats.edges} />
-      ))}
+      <SkylightBeam />
 
       <Escalator from={[-19.5, 0, 12.5]} to={[-19.5, 6, 2.6]} mats={mats} />
       <Escalator from={[20.5, 0, 12.5]} to={[20.5, 6, 2.6]} mats={mats} />
@@ -291,45 +401,76 @@ export function Architecture() {
   );
 }
 
-/** Restricted B1 life-support plant room under the atrium. */
+// ---------------------------------------------------------------------------
+// Back-of-house life-support plant hall.
+
+function gridFloorMaterial(base: string, line: string) {
+  return new THREE.ShaderMaterial({
+    uniforms: { uBase: { value: new THREE.Color(base) }, uLine: { value: new THREE.Color(line) } },
+    vertexShader: /* glsl */ `
+      varying vec3 vWorld;
+      void main() { vec4 w = modelMatrix * vec4(position, 1.0); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform vec3 uBase; uniform vec3 uLine;
+      varying vec3 vWorld;
+      void main() {
+        vec2 g = abs(fract(vWorld.xz / 2.0) - 0.5) / fwidth(vWorld.xz / 2.0);
+        float l = 1.0 - min(min(g.x, g.y), 1.0);
+        vec2 G = abs(fract(vWorld.xz / 10.0) - 0.5) / fwidth(vWorld.xz / 10.0);
+        float L = 1.0 - min(min(G.x, G.y), 1.0);
+        vec3 col = uBase + uLine * (l * 0.14 + L * 0.3);
+        gl_FragColor = vec4(col, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+}
+
 export function PlantRoom() {
-  const p = BUILDING.plant;
   const mats = useMemo(
     () => ({
-      floor: new THREE.MeshStandardMaterial({ color: "#545a62", roughness: 0.85 }),
-      pad: new THREE.MeshStandardMaterial({ color: "#6f757d", roughness: 0.9 }),
-      wall: ghostMaterial(new THREE.MeshStandardMaterial({ color: "#3e444c", roughness: 0.9 }), { ghost: 0.55, engineeringOnly: true }),
-      safety: new THREE.MeshStandardMaterial({ color: "#d8b11a", roughness: 0.6 }),
-      tray: new THREE.MeshStandardMaterial({ color: "#8a929c", metalness: 0.6, roughness: 0.4 }),
-      lamp: new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#e6f2ff"), emissiveIntensity: 2.2 }),
-      walkway: new THREE.MeshStandardMaterial({ color: "#2f6f5a", roughness: 0.7 }),
+      floor: gridFloorMaterial("#252b34", "#5aa9ff"),
+      voidFloor: gridFloorMaterial("#141920", "#3f7fc4"),
+      pad: new THREE.MeshStandardMaterial({ color: "#5f6670", roughness: 0.9 }),
+      safety: new THREE.MeshStandardMaterial({ color: "#e0b51c", roughness: 0.6, emissive: new THREE.Color("#3a2c00"), emissiveIntensity: 0.6 }),
+      steel: new THREE.MeshStandardMaterial({ color: "#7d8793", metalness: 0.75, roughness: 0.4 }),
+      lamp: new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#e8f3ff"), emissiveIntensity: 3 }),
+      walkway: new THREE.MeshStandardMaterial({ color: "#2a6b55", roughness: 0.7 }),
+      console: new THREE.MeshStandardMaterial({ color: "#1b2028", metalness: 0.4, roughness: 0.5 }),
+      screen: new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#3aa0ff"), emissiveIntensity: 2.2 }),
+      hazard: new THREE.MeshStandardMaterial({ color: "#d9a81a", roughness: 0.6 }),
     }),
     [],
   );
-  useEffect(
-    () => () => {
-      releaseGhost(mats.wall);
-      Object.values(mats).forEach((m) => m.dispose());
-    },
-    [mats],
-  );
-  const r = useMemo(() => rng(42), []);
-  void r;
+  useEffect(() => () => Object.values(mats).forEach((m) => m.dispose()), [mats]);
   const pads = [
     ...PUMPS.map((pm) => ({ x: pm.position[0], z: pm.position[2], w: 3.8, d: 1.9 })),
     ...FILTERS.map((f) => ({ x: f.position[0], z: f.position[2], w: f.radius * 2 + 0.8, d: f.radius * 2 + 0.8 })),
   ];
+  const cx = (P.minX + P.maxX) / 2;
+  const cz = (P.minZ + P.maxZ) / 2;
+  const hangers: [number, number][] = [
+    [-16, 2.5],
+    [-6, 2.5],
+    [7.5, 1.8],
+    [14, 1.8],
+  ];
   return (
     <group>
-      <mesh material={mats.floor} position={[0, p.floor - 0.15, (p.minZ + p.maxZ) / 2]} raycast={() => null}>
-        <boxGeometry args={[p.maxX - p.minX, 0.3, p.maxZ - p.minZ]} />
+      {/* Plant floor and the service void under the atrium slab */}
+      <mesh material={mats.floor} position={[cx, P.floor - 0.15, cz]} raycast={() => null}>
+        <boxGeometry args={[P.maxX - P.minX, 0.3, P.maxZ - P.minZ]} />
       </mesh>
-      {/* Green walkway and safety lines */}
-      <mesh material={mats.walkway} position={[0, p.floor + 0.01, 9.4]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
-        <planeGeometry args={[44, 1.6]} />
+      <mesh material={mats.voidFloor} position={[0, BUILDING.voidFloor - 0.15, (BUILDING.minZ + BUILDING.maxZ) / 2]} raycast={() => null}>
+        <boxGeometry args={[BUILDING.maxX - BUILDING.minX, 0.3, BUILDING.maxZ - BUILDING.minZ]} />
+      </mesh>
+      <mesh material={mats.walkway} position={[0, P.floor + 0.01, -36.1]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
+        <planeGeometry args={[44, 1.0]} />
       </mesh>
       {pads.map((pd, i) => (
-        <group key={i} position={[pd.x, p.floor, pd.z]}>
+        <group key={i} position={[pd.x, P.floor, pd.z]}>
           <mesh material={mats.pad} position={[0, 0.06, 0]} raycast={() => null}>
             <boxGeometry args={[pd.w, 0.12, pd.d]} />
           </mesh>
@@ -338,29 +479,39 @@ export function PlantRoom() {
           </mesh>
         </group>
       ))}
-      {/* Walls (cut away towards the viewer) */}
-      <mesh material={mats.wall} position={[0, (p.floor + p.ceiling) / 2, p.minZ - 0.2]} raycast={() => null}>
-        <boxGeometry args={[p.maxX - p.minX, p.ceiling - p.floor, 0.4]} />
-      </mesh>
-      <mesh material={mats.wall} position={[p.minX - 0.2, (p.floor + p.ceiling) / 2, (p.minZ + p.maxZ) / 2]} raycast={() => null}>
-        <boxGeometry args={[0.4, p.ceiling - p.floor, p.maxZ - p.minZ]} />
-      </mesh>
-      <mesh material={mats.wall} position={[p.maxX + 0.2, (p.floor + p.ceiling) / 2, (p.minZ + p.maxZ) / 2]} raycast={() => null}>
-        <boxGeometry args={[0.4, p.ceiling - p.floor, p.maxZ - p.minZ]} />
-      </mesh>
-      <mesh material={mats.wall} position={[0, p.floor + 0.6, p.maxZ + 0.2]} raycast={() => null}>
-        <boxGeometry args={[p.maxX - p.minX, 1.2, 0.4]} />
-      </mesh>
-      {/* Cable trays and work lights */}
-      {[-12, 12].map((z) => (
-        <mesh key={z} material={mats.tray} position={[0, p.ceiling - 0.35, z * 0.9]} raycast={() => null}>
-          <boxGeometry args={[44, 0.08, 0.5]} />
-        </mesh>
+      {/* Trapeze hangers carrying the overhead headers from the roof steel */}
+      {hangers.map(([x, y]) => (
+        <group key={x} position={[x, 0, -22.5]}>
+          <mesh material={mats.steel} position={[0, y - 0.34, 0]} raycast={() => null}>
+            <boxGeometry args={[0.14, 0.1, 1.3]} />
+          </mesh>
+          {[-0.55, 0.55].map((dz) => (
+            <mesh key={dz} material={mats.steel} position={[0, (y - 0.34 + 8.6) / 2, dz]} raycast={() => null}>
+              <boxGeometry args={[0.05, 8.6 - (y - 0.34), 0.05]} />
+            </mesh>
+          ))}
+        </group>
       ))}
+      {/* Hazard band along the plant's rear wall */}
+      <mesh material={mats.hazard} position={[cx, P.floor + 0.35, P.minZ + 0.02]} raycast={() => null}>
+        <boxGeometry args={[P.maxX - P.minX, 0.2, 0.04]} />
+      </mesh>
+      {/* Control console */}
+      <group position={[-4.5, P.floor, -35.6]}>
+        <mesh material={mats.console} position={[0, 0.5, 0]} raycast={() => null}>
+          <boxGeometry args={[3.2, 1.0, 0.9]} />
+        </mesh>
+        {[-1, 0, 1].map((i) => (
+          <mesh key={i} material={mats.screen} position={[i * 1.0, 1.4, 0.2]} rotation={[0.25, Math.PI, 0]} raycast={() => null}>
+            <planeGeometry args={[0.85, 0.5]} />
+          </mesh>
+        ))}
+      </group>
+      {/* Industrial light bars */}
       {[-16, -8, 0, 8, 16].map((x) =>
-        [-8, -2, 4].map((z) => (
-          <mesh key={`${x}-${z}`} material={mats.lamp} position={[x, p.ceiling - 0.12, z]} raycast={() => null}>
-            <boxGeometry args={[1.6, 0.06, 0.18]} />
+        [-20, -26, -32].map((z) => (
+          <mesh key={`${x}-${z}`} material={mats.lamp} position={[x, 8.6, z]} raycast={() => null}>
+            <boxGeometry args={[2.2, 0.06, 0.2]} />
           </mesh>
         )),
       )}

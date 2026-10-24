@@ -20,8 +20,8 @@ import {
   type SimCommand,
   type SimState,
 } from "@/lib/simulation/engine";
-import { PRESETS, type ScenarioPreset } from "@/lib/simulation/scenario";
-import { ASSET_BY_ID, PUMP_BY_ID } from "@/lib/topology/graph";
+import { PRESETS, SCENARIOS, type ScenarioId, type ScenarioPreset } from "@/lib/simulation/scenario";
+import { ASSET_BY_ID, PUMP_BY_ID, downstreamTanks } from "@/lib/topology/graph";
 import type { FloorId } from "@/lib/types";
 import { buildHandover, buildWorkOrderContext } from "@/lib/workflow/handover";
 import { generateTasks } from "@/lib/workflow/tasks";
@@ -36,7 +36,7 @@ import type {
 import { getEngine, rebuildEngine, setEngine, snapshot } from "./engine";
 
 export type Section = "facility" | "assets" | "incidents" | "tasks" | "analytics" | "settings";
-export type ViewMode = "public" | "infrastructure" | "incident";
+export type ViewMode = "public" | "operations";
 export type PanelTab = "overview" | "live" | "connections" | "history";
 export type Quality = "high" | "balanced" | "low";
 export type MotionPref = "system" | "reduce" | "full";
@@ -45,11 +45,26 @@ export type LayerKey = "tanks" | "pumps" | "filters" | "pipes" | "valves" | "sen
 
 export type LayerState = Record<LayerKey, boolean>;
 
+// The plant hall sits physically behind the atrium, so its equipment is part of
+// the public world too (seen when orbiting round); pipes are clipped to the plant.
 export const LAYER_DEFAULTS: Record<ViewMode, LayerState> = {
-  public: { tanks: true, pumps: false, filters: false, pipes: false, valves: false, sensors: false, shell: true, flow: false, labels: false, marine: true, visitors: true },
-  infrastructure: { tanks: true, pumps: true, filters: true, pipes: true, valves: true, sensors: true, shell: true, flow: true, labels: true, marine: true, visitors: false },
-  incident: { tanks: true, pumps: true, filters: true, pipes: true, valves: true, sensors: false, shell: true, flow: true, labels: true, marine: true, visitors: false },
+  public: { tanks: true, pumps: true, filters: true, pipes: true, valves: true, sensors: false, shell: true, flow: true, labels: false, marine: true, visitors: true },
+  operations: { tanks: true, pumps: true, filters: true, pipes: true, valves: true, sensors: true, shell: true, flow: true, labels: true, marine: true, visitors: false },
 };
+
+export interface FollowTarget {
+  tankId: string;
+  /** Index into the tank's habitat.species list. */
+  species: number;
+}
+
+/** A one-shot visual pulse: red when a fault spreads, green when service is restored. */
+export interface FxPulse {
+  id: number;
+  kind: "fault" | "heal";
+  rootId: string;
+  tanks: string[];
+}
 
 export interface Toast {
   id: number;
@@ -89,6 +104,8 @@ export interface AppState {
   showTimeline: boolean;
   cameraNonce: number;
   captures: Record<string, string>;
+  follow: FollowTarget | null;
+  pulse: FxPulse | null;
   toasts: Toast[];
   dialogs: Dialogs;
   webglFailed: boolean;
@@ -113,6 +130,8 @@ export interface AppState {
   setAutoFastForward: (v: boolean) => void;
 
   simulateFailure: (pumpId?: string) => void;
+  runScenario: (id: ScenarioId) => void;
+  setFollow: (f: FollowTarget | null) => void;
   backupResponse: () => void;
   stabilize: () => void;
   recover: () => void;
@@ -191,9 +210,25 @@ export const useAppStore = create<AppState>()(
         set({ tasks: get().tasks.map((t) => (t.id === taskId ? fn(t) : t)) });
       };
 
-      const publish = () => {
+      let seenEvents = 0;
+      let pulseId = 0;
+      const publish = (opts: { live?: boolean } = {}) => {
         const e = getEngine();
-        set({ sim: snapshot(e), simT: e.t, simCommands: e.commands.map((c) => ({ ...c })) });
+        const prevSeen = seenEvents;
+        seenEvents = e.events.length;
+        const patch: Partial<AppState> = { sim: snapshot(e), simT: e.t, simCommands: e.commands.map((c) => ({ ...c })) };
+        // Trigger the fault / heal pulse for events that just happened live.
+        if (opts.live !== false && prevSeen < e.events.length) {
+          for (const ev of e.events.slice(prevSeen)) {
+            if (ev.t < e.t - 60) continue;
+            const inc = e.incidents.find((i) => i.id === ev.incidentId);
+            if (!inc) continue;
+            if (ev.kind === "fault") patch.pulse = { id: ++pulseId, kind: "fault", rootId: inc.rootAssetId, tanks: downstreamTanks(inc.rootAssetId) };
+            // Heal as soon as the failed equipment itself is back in service.
+            if (ev.kind === "recovery" && ev.assets[0] === inc.rootAssetId) patch.pulse = { id: ++pulseId, kind: "heal", rootId: inc.rootAssetId, tanks: [...inc.affectedTankIds] };
+          }
+        }
+        set(patch);
         syncWorkflow();
       };
 
@@ -227,6 +262,8 @@ export const useAppStore = create<AppState>()(
         showTimeline: true,
         cameraNonce: 0,
         captures: {},
+        follow: null,
+        pulse: null,
         toasts: [],
         dialogs: { handover: false, workOrderId: null, resetConfirm: false, shortcuts: false },
         webglFailed: false,
@@ -235,7 +272,7 @@ export const useAppStore = create<AppState>()(
         simCommands: [],
         simT: getEngine().t,
 
-        publish,
+        publish: () => publish(),
 
         tick: (wall) => {
           const { playing, speed, autoFastForward } = get();
@@ -260,18 +297,34 @@ export const useAppStore = create<AppState>()(
         setAutoFastForward: (v) => set({ autoFastForward: v }),
 
         simulateFailure: (pumpId = "PMP-C2") => {
+          const def = SCENARIOS.find((d) => d.rootAssetId === pumpId);
+          if (def) return get().runScenario(def.id);
           const e = getEngine();
           const p = e.pumps[pumpId];
-          if (!p || p.mode === "fault" || p.mode === "tripping") {
-            get().toast(`${PUMP_BY_ID[pumpId]?.code ?? pumpId} is already in fault.`, "warn");
-            return;
-          }
+          if (!p || p.mode === "fault" || p.mode === "tripping") return;
           pushCommand({ type: "inject-fault", assetId: pumpId });
           set({ playing: true });
           publish();
           log(`Simulated failure injected on ${PUMP_BY_ID[pumpId].code}`);
-          get().toast(`Simulating ${PUMP_BY_ID[pumpId].code} motor fault`, "crit");
         },
+
+        runScenario: (id) => {
+          const def = SCENARIOS.find((d) => d.id === id);
+          if (!def) return;
+          const e = getEngine();
+          const busy = activeIncidents(e).some((i) => i.rootAssetId === def.rootAssetId) || e.pumps[def.rootAssetId]?.mode === "tripping" || (e.filters[def.rootAssetId]?.clogTarget ?? 0) > 0;
+          if (busy) {
+            get().toast(`${def.title} is already running.`, "warn");
+            return;
+          }
+          pushCommand({ type: def.command, assetId: def.rootAssetId });
+          set({ playing: true });
+          publish();
+          log(`Scenario started: ${def.title} (simulated)`);
+          get().toast(`Simulating: ${def.title}`, "crit");
+        },
+
+        setFollow: (follow) => set({ follow }),
 
         backupResponse: () => {
           const e = getEngine();
@@ -309,17 +362,18 @@ export const useAppStore = create<AppState>()(
             get().toast("Nothing to recover.", "warn");
             return;
           }
-          pushCommand({ type: "recover", assetId: inc.rootAssetId });
+          const isFilter = !!e.filters[inc.rootAssetId];
+          pushCommand({ type: isFilter ? "backwash" : "recover", assetId: inc.rootAssetId });
           set({ playing: true });
           publish();
-          log(`Recorded authorized restart of ${PUMP_BY_ID[inc.rootAssetId].code} (simulated)`, { incidentId: inc.id });
+          log(`Recorded ${isFilter ? "backwash of" : "authorized restart of"} ${ASSET_BY_ID[inc.rootAssetId].code} (simulated)`, { incidentId: inc.id });
         },
 
         resetScenario: () => {
           setEngine(createInitialState());
           carry = 0;
-          set({ ...emptyWorkflow(), selectedId: null, level: null, dialogs: { ...get().dialogs, resetConfirm: false } });
-          publish();
+          set({ ...emptyWorkflow(), selectedId: null, level: null, follow: null, pulse: null, dialogs: { ...get().dialogs, resetConfirm: false } });
+          publish({ live: false });
           get().toast("Scenario reset to healthy baseline", "ok");
         },
 
@@ -328,8 +382,8 @@ export const useAppStore = create<AppState>()(
           if (!preset) return;
           rebuildEngine(preset.commands, preset.target);
           carry = 0;
-          set({ ...emptyWorkflow(), selectedId: null, level: null });
-          publish();
+          set({ ...emptyWorkflow(), selectedId: null, level: null, follow: null, pulse: null });
+          publish({ live: false });
         },
 
         setSection: (section) => set({ section }),
@@ -337,7 +391,7 @@ export const useAppStore = create<AppState>()(
         setMode: (mode) => {
           const { selectedId, sim } = get();
           const patch: Partial<AppState> = { mode, section: "facility", level: null };
-          if (mode === "incident" && !selectedId) {
+          if (mode === "operations" && !selectedId) {
             const inc = activeIncidents(sim)[0];
             if (inc) patch.selectedId = inc.rootAssetId;
           }
@@ -348,18 +402,13 @@ export const useAppStore = create<AppState>()(
 
         select: (id) => {
           if (id === get().selectedId) return;
-          set({ selectedId: id, panelTab: "overview" });
+          set({ selectedId: id, panelTab: "overview", follow: id && get().follow?.tankId === id ? get().follow : null });
         },
         hover: (id) => {
           if (get().hoveredId !== id) set({ hoveredId: id });
         },
         setLevel: (level) => {
-          if (level === "B1" && get().mode === "public") {
-            set({ mode: "infrastructure", level });
-            get().toast("B1 is a restricted plant level — showing Infrastructure View", "info");
-            return;
-          }
-          set({ level });
+          set({ level, follow: null });
         },
         toggleLayer: (k) => {
           const { layers, mode } = get();
@@ -535,7 +584,7 @@ export const useAppStore = create<AppState>()(
       };
     },
     {
-      name: "aqualink-v1",
+      name: "aqualink-v2",
       version: 1,
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,

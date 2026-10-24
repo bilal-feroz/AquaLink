@@ -6,7 +6,7 @@
  */
 import { CURRENT_USER } from "@/lib/data/facility";
 import type { IncidentRuntime } from "@/lib/simulation/engine";
-import { PUMP_BY_ID, TANK_BY_ID, downstreamTanks, tankInfrastructure } from "@/lib/topology/graph";
+import { FILTER_BY_ID, PUMP_BY_ID, TANK_BY_ID, downstreamTanks, tankInfrastructure } from "@/lib/topology/graph";
 import type { MaintenanceTask } from "./types";
 
 function names(ids: string[]) {
@@ -34,6 +34,53 @@ export function generateTasks(inc: IncidentRuntime, now: number): MaintenanceTas
     history: [{ at: now, by: "AquaLink", action: `Generated from ${inc.id}` }],
     steps: t.steps.map((label, i) => ({ id: `${base(n)}-s${i + 1}`, label, done: false })),
   });
+
+  const filter = FILTER_BY_ID[inc.rootAssetId];
+  if (filter) {
+    // Media blockage: confirm, backwash, verify recovery.
+    return [
+      mk(1, {
+        templateId: "verify-dp",
+        title: `Verify ${filter.code} differential pressure and loop flow`,
+        description: `${inc.diagnosis.label} (${inc.diagnosis.confidence}). ${inc.diagnosis.evidence}`,
+        priority: 1,
+        assetIds: [filter.id, `DPT-${filter.code.replace("-", "")}`, ...flowSensors],
+        steps: [`Read ${filter.code} inlet / outlet gauges locally`, "Compare with the simulated DP trend", `Confirm reduced flow at ${flowSensors.join(" / ")}`],
+      }),
+      mk(2, {
+        templateId: "backwash",
+        title: `Backwash sand filter ${filter.code} per procedure`,
+        description: "Restore filter capacity. Only the backwash recorded through AquaLink is simulated; the physical backwash follows the site procedure.",
+        priority: 2,
+        assetIds: [filter.id],
+        steps: ["Notify duty aquarist before the backwash", `Isolate ${filter.code} and start backwash`, "Rinse to waste until clear", "Return to service and record final DP"],
+      }),
+      mk(3, {
+        templateId: "confirm-readings",
+        title: `Confirm circulation readings for ${tankNames}`,
+        description: "Cross-check circulation and water quality in every affected habitat after the backwash.",
+        priority: 2,
+        assetIds: [...tanks, ...flowSensors, ...doSensors],
+        steps: [...tanks.map((id) => `Verify inlet flow at ${TANK_BY_ID[id].name}`), `Spot-check dissolved oxygen in ${tankNames}`],
+      }),
+      mk(4, {
+        templateId: "inspect-media",
+        title: `Inspect ${filter.code} media and underdrain if DP stays high`,
+        description: "A bed that blocks again quickly may need media replacement or underdrain repair.",
+        priority: 3,
+        assetIds: [filter.id],
+        steps: ["Trend DP for the next hour", "Schedule media inspection if DP rises again", "Check pre-strainer baskets"],
+      }),
+      mk(5, {
+        templateId: "record",
+        title: "Record observations and maintenance findings",
+        description: "Capture what was found and done so the next shift can continue without re-diagnosing.",
+        priority: 4,
+        assetIds: [filter.id],
+        steps: ["Log observations against the incident", "Attach backwash record to the work order", "Update shift handover notes"],
+      }),
+    ];
+  }
 
   const tasks: MaintenanceTask[] = [];
   if (backup) {

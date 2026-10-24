@@ -12,6 +12,7 @@ import type { JunctionConfig, Vec3 } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 import { sceneFx } from "./sceneFx";
 import { flowMaterial } from "./shaders";
+import { WAVE_SPEED, waveFx } from "./waveFx";
 import type { TraceSet } from "./trace";
 
 const BASELINE_FLOW = createInitialState().edgeFlow;
@@ -53,6 +54,16 @@ function tubeFor(points: Vec3[], radius: number, radial = 12) {
 
 const BODY_COLOR = "#9aa5b1";
 
+/**
+ * In the public view only the plant-hall side of the network is shown (the rest
+ * runs hidden under floors and deck soffits). Switching to Operations sweeps
+ * this plane forward so the pipework "grows" towards the tanks.
+ */
+export const pipeClip = new THREE.Plane(new THREE.Vector3(0, 0, -1), -16.2);
+
+const WAVE_RED = new THREE.Color("#ff3d3d");
+const WAVE_GREEN = new THREE.Color("#3dff9a");
+
 interface PipeProps {
   edgeId: string;
   points: Vec3[];
@@ -64,15 +75,24 @@ interface PipeProps {
   highlighted: boolean;
   dimmed: boolean;
   interactive: boolean;
+  /** Edge whose propagation-front distance this run follows. */
+  waveEdge?: string;
 }
 
-function PipeRun({ edgeId, points, diameter, visual, flow, nominal, showFlow, highlighted, dimmed, interactive }: PipeProps) {
+function PipeRun({ edgeId, points, diameter, visual, flow, nominal, showFlow, highlighted, dimmed, interactive, waveEdge }: PipeProps) {
   const r = pipeRadius(diameter);
   const { geo, length } = useMemo(() => tubeFor(points, r), [points, r]);
   const flowGeo = useMemo(() => tubeFor(points, r * 1.14, 10).geo, [points, r]);
   const pickGeo = useMemo(() => (interactive ? tubeFor(points, r + 0.14, 6).geo : null), [points, r, interactive]);
-  const body = useMemo(() => new THREE.MeshStandardMaterial({ color: BODY_COLOR, metalness: 0.8, roughness: 0.32, emissive: new THREE.Color("#000"), emissiveIntensity: 0.4 }), []);
-  const overlay = useMemo(() => flowMaterial(), []);
+  const body = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: BODY_COLOR, metalness: 0.8, roughness: 0.32, emissive: new THREE.Color("#000"), emissiveIntensity: 0.4, clippingPlanes: [pipeClip] }),
+    [],
+  );
+  const overlay = useMemo(() => {
+    const m = flowMaterial();
+    m.clippingPlanes = [pipeClip];
+    return m;
+  }, []);
   const select = useAppStore((s) => s.select);
   const hover = useAppStore((s) => s.hover);
 
@@ -111,6 +131,25 @@ function PipeRun({ edgeId, points, diameter, visual, flow, nominal, showFlow, hi
     const glow = visual === "standby" ? 0 : visual === "interrupted" ? 0.25 + 0.25 * sceneFx.pulse : 0.12;
     body.emissiveIntensity = dimmed ? glow * 0.2 : highlighted ? glow + 0.25 : glow;
     body.color.set(dimmed ? "#5b636d" : BODY_COLOR);
+    // Fault / heal propagation front.
+    const u = overlay.uniforms;
+    const key = waveEdge ?? edgeId;
+    const start = waveFx.edgeStart[key];
+    const age = sceneFx.time - waveFx.start;
+    const on = waveFx.active && start !== undefined && age < waveFx.maxDist / WAVE_SPEED + 5;
+    u.uWaveOn.value = on ? 1 : 0;
+    if (on) {
+      u.uWaveStart.value = start - (waveEdge ? 2 : 0);
+      u.uWaveFront.value = age * WAVE_SPEED;
+      u.uWaveAge.value = Math.max(0, age - (start + length) / WAVE_SPEED);
+      u.uWaveColor.value.copy(waveFx.kind === "fault" ? WAVE_RED : WAVE_GREEN);
+      if (waveFx.kind === "fault") {
+        // The struck line keeps glowing red in the body for a moment.
+        const hit = Math.max(0, 1 - Math.max(0, age - start / WAVE_SPEED) * 0.35);
+        body.emissiveIntensity = Math.max(body.emissiveIntensity, hit * 0.9 * (age * WAVE_SPEED > start ? 1 : 0));
+        if (age * WAVE_SPEED > start) body.emissive.copy(WAVE_RED);
+      }
+    }
   });
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
@@ -154,6 +193,10 @@ function headerVisual(j: JunctionConfig, visuals: Record<string, FlowVisual>, fl
 }
 
 export function Pipes({ showFlow, trace, interactive, incidentMode }: { showFlow: boolean; trace: TraceSet; interactive: boolean; incidentMode: boolean }) {
+  useFrame(() => {
+    // Plant-side only in the public view; full network in Operations.
+    pipeClip.constant = -16.2 + sceneFx.ghost * 80;
+  });
   const sim = useAppStore((s) => s.sim);
   const selectedId = useAppStore((s) => s.selectedId);
   const hoveredId = useAppStore((s) => s.hoveredId);
@@ -202,6 +245,7 @@ export function Pipes({ showFlow, trace, interactive, incidentMode }: { showFlow
             highlighted={selectedId === j.id || hoveredId === j.id}
             dimmed={dimmed}
             interactive={interactive}
+            waveEdge={outgoing(j.id)[0]?.id}
           />
         );
       })}

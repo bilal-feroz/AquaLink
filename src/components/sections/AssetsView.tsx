@@ -63,7 +63,7 @@ export function AssetsView() {
   );
 
   const open = (x: AssetRecord) => {
-    if (x.kind !== "tank" && useAppStore.getState().mode === "public") a.setMode("infrastructure");
+    if (x.kind !== "tank" && useAppStore.getState().mode === "public") a.setMode("operations");
     a.setSection("facility");
     a.select(x.id);
     window.setTimeout(() => window.dispatchEvent(new CustomEvent("aqualink:focus", { detail: x.id })), 60);

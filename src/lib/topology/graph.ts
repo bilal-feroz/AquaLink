@@ -79,8 +79,10 @@ function midpoint(points: Vec3[]): Vec3 {
   return points[points.length - 1];
 }
 
-function floorForY(y: number): FloorId {
-  if (y < -0.4) return "B1";
+function floorForPos([, y, z]: Vec3): FloorId {
+  // Everything behind the atrium's back wall is the back-of-house plant hall.
+  if (z < -16.2) return "PL";
+  if (y < 0) return "L1";
   if (y < 5.5) return "L1";
   if (y < 11.5) return "L2";
   return "L3";
@@ -101,7 +103,7 @@ const assetList: AssetRecord[] = [
       kind: "pipe" as const,
       code: e.id,
       name: `${shortName(e.from)} → ${shortName(e.to)}`,
-      floor: floorForY(pos[1]),
+      floor: floorForPos(pos),
       position: pos,
     };
   }),

@@ -30,6 +30,7 @@ export function snapshot(s: SimState): SimState {
     t: s.t,
     startedAt: s.startedAt,
     pumps: clone(s.pumps),
+    filters: clone(s.filters),
     valves: clone(s.valves),
     tanks: clone(s.tanks),
     edgeFlow: { ...s.edgeFlow },

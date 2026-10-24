@@ -454,6 +454,7 @@ export function flowMaterial() {
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
+    clipping: true,
     uniforms: {
       uTime: { value: 0 },
       uColor: { value: new THREE.Color("#2f8cff") },
@@ -463,22 +464,34 @@ export function flowMaterial() {
       uMode: { value: 0 }, // 0 flowing, 1 interrupted (static, pulsing), 2 idle
       uIntensity: { value: 1 },
       uHighlight: { value: 0 },
+      // Fault / heal propagation front (distances in metres along the network).
+      uWaveOn: { value: 0 },
+      uWaveStart: { value: 0 },
+      uWaveFront: { value: 0 },
+      uWaveAge: { value: 0 },
+      uWaveColor: { value: new THREE.Color("#ff3b3b") },
     },
     vertexShader: /* glsl */ `
+      #include <clipping_planes_pars_vertex>
       varying vec2 vUv; varying vec3 vN; varying vec3 vWorld;
       void main() {
         vUv = uv;
         vec4 w = modelMatrix * vec4(position, 1.0);
         vWorld = w.xyz;
         vN = normalize(mat3(modelMatrix) * normal);
-        gl_Position = projectionMatrix * viewMatrix * w;
+        vec4 mvPosition = viewMatrix * w;
+        gl_Position = projectionMatrix * mvPosition;
+        #include <clipping_planes_vertex>
       }
     `,
     fragmentShader: /* glsl */ `
+      #include <clipping_planes_pars_fragment>
       uniform float uTime; uniform vec3 uColor; uniform float uLength; uniform float uSpeed; uniform float uPhase;
       uniform float uMode; uniform float uIntensity; uniform float uHighlight;
+      uniform float uWaveOn; uniform float uWaveStart; uniform float uWaveFront; uniform float uWaveAge; uniform vec3 uWaveColor;
       varying vec2 vUv; varying vec3 vN; varying vec3 vWorld;
       void main() {
+        #include <clipping_planes_fragment>
         vec3 V = normalize(cameraPosition - vWorld);
         float rim = pow(1.0 - abs(dot(normalize(vN), V)), 1.5);
         float s = vUv.x * uLength;
@@ -495,7 +508,16 @@ export function flowMaterial() {
           a = 0.0;
         }
         a = (a * (0.45 + 0.55 * rim) + uHighlight * 0.35) * uIntensity;
-        gl_FragColor = vec4(uColor * a * 1.6, a);
+        vec3 col = uColor * a * 1.6;
+        // Propagation front: a bright band travelling outward from the root,
+        // leaving a fading wake behind it.
+        float g = uWaveStart + s;
+        float front = exp(-pow((g - uWaveFront) / 1.6, 2.0));
+        float wake = step(g, uWaveFront) * exp(-uWaveAge * 0.6) * 0.55;
+        float w = (front * 2.2 + wake) * uWaveOn;
+        col += uWaveColor * w * 1.8;
+        a = max(a, w);
+        gl_FragColor = vec4(col, a);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }
@@ -521,12 +543,29 @@ export function visitorMaterial() {
       attribute vec3 aCloth;
       attribute vec3 aSkin;
       attribute float aPhase;
+      attribute vec3 aWalk; // gait phase, moving (0/1), photo pose (0..1)
       uniform float uTime; uniform float uMotion;
       varying vec3 vN; varying vec3 vWorld; varying float vPart; varying vec3 vCloth; varying vec3 vSkin; varying float vH;
       void main() {
         vec3 p = position;
-        // Subtle idle sway.
-        float sway = sin(uTime * 0.8 + aPhase * 6.28) * 0.025 * uMotion * smoothstep(0.6, 1.8, p.y);
+        float swing = sin(aWalk.x) * 0.5 * aWalk.y;
+        if (aPart < 0.5) {
+          // Legs swing about the hip, alternating sides.
+          float side = p.x < 0.0 ? 1.0 : -1.0;
+          float h = max(0.0, 0.88 - p.y);
+          p.z += sin(swing * side) * h;
+          p.y += (1.0 - cos(swing * side)) * h;
+        } else if (aPart < 1.5 && abs(p.x) > 0.19 && p.y < 1.45) {
+          // Arms swing opposite the legs; the right arm lifts a phone for photos.
+          float side = p.x < 0.0 ? -1.0 : 1.0;
+          float h = max(0.0, 1.42 - p.y);
+          float s = -swing * side * 0.8 + (p.x > 0.0 ? aWalk.z * 1.35 : 0.0);
+          p.z += sin(s) * h;
+          p.y += (1.0 - cos(s)) * h;
+        }
+        p.y += abs(sin(aWalk.x)) * 0.035 * aWalk.y;
+        // Subtle idle sway while standing.
+        float sway = sin(uTime * 0.8 + aPhase * 6.28) * 0.025 * uMotion * smoothstep(0.6, 1.8, p.y) * (1.0 - aWalk.y);
         p.x += sway;
         vec4 w = modelMatrix * instanceMatrix * vec4(p, 1.0);
         vWorld = w.xyz;

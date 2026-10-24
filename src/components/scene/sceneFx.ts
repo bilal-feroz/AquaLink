@@ -23,14 +23,14 @@ export interface CameraPreset {
   target: Vec3;
 }
 
-export const CAMERA_PRESETS: Record<"public" | "infrastructure" | "incident", CameraPreset> = {
+export const CAMERA_PRESETS: Record<"public" | "operations", CameraPreset> = {
   public: { position: [0, 7.4, 35], target: [0, 6.4, -3] },
-  infrastructure: { position: [2, 22, 37], target: [0, 1.8, -1.5] },
-  incident: { position: [24.5, 19.5, 45], target: [7.5, 4.6, -2.5] },
+  // From behind and above: the plant hall in front, the exhibits beyond.
+  operations: { position: [15, 27, -60], target: [0, 1.5, -15] },
 };
 
 export const LEVEL_PRESETS: Record<FloorId, CameraPreset> = {
-  B1: { position: [0, 5.5, 27], target: [0, -3.8, 3] },
+  PL: { position: [9, 11, -55], target: [0, 0.5, -26] },
   L1: { position: [0, 4.2, 31], target: [0, 2.6, 1] },
   L2: { position: [0, 10.5, 29], target: [0, 7.6, -3] },
   L3: { position: [2, 16.5, 25], target: [3, 13.2, -7] },

@@ -5,10 +5,10 @@
  * functions, so a value is identical wherever it appears.
  * Measurement noise is a deterministic function of simulated time.
  */
-import { LOOPS, SENSORS, TANKS } from "@/lib/data/facility";
-import { FILTER_BY_ID, PUMP_BY_ID, SENSOR_BY_ID, TANK_BY_ID } from "@/lib/topology/graph";
+import { SENSORS } from "@/lib/data/facility";
+import { PUMP_BY_ID, SENSOR_BY_ID, TANK_BY_ID } from "@/lib/topology/graph";
 import type { SensorConfig } from "@/lib/types";
-import type { SimState } from "./engine";
+import { filterDp, loopDesignFlow, type SimState } from "./engine";
 
 function hash(id: string) {
   let h = 2166136261;
@@ -72,13 +72,11 @@ export function pumpReading(s: SimState, pumpId: string): PumpReading {
 }
 
 export function filterReading(s: SimState, filterId: string) {
-  const f = FILTER_BY_ID[filterId];
   const flow = s.nodeFlow[filterId] ?? 0;
-  const loop = LOOPS.find((l) => l.id === f.loopId);
-  const design = TANKS.filter((t) => loop?.tankIds.includes(t.id)).reduce((sum, t) => sum + t.designFlow, 0) || 1;
-  // Clean-bed differential pressure rises with the square of throughput.
-  const k = flow / design;
-  return { flow, dpKpa: 18 + 30 * k * k + 0.3 * noise(`DPT-${filterId}`, s.t) };
+  const f = s.filters?.[filterId];
+  // Differential pressure comes from the engine (throughput² + blockage), plus noise.
+  const dp = f ? f.dp : filterDp(flow / loopDesignFlow(filterId), 0);
+  return { flow, dpKpa: dp + 0.3 * noise(`DPT-${filterId}`, s.t), clogPct: (f?.clog ?? 0) * 100, backwashing: !!f?.backwashing };
 }
 
 export interface SensorValue {

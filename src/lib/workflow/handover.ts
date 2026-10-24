@@ -7,7 +7,7 @@ import type { IncidentRuntime, SimState } from "@/lib/simulation/engine";
 import { activeIncidents } from "@/lib/simulation/engine";
 import { facilityKpis } from "@/lib/simulation/kpi";
 import { pumpReading, tankReading } from "@/lib/simulation/readings";
-import { PUMP_BY_ID, TANK_BY_ID } from "@/lib/topology/graph";
+import { ASSET_BY_ID, PUMP_BY_ID, TANK_BY_ID } from "@/lib/topology/graph";
 import type { ActivityEntry, IncidentMeta, MaintenanceTask, WorkOrder } from "./types";
 
 export function techName(id?: string) {
@@ -32,6 +32,14 @@ export function pumpStateLabel(s: SimState, id: string) {
     case "fault":
       return "Fault — stopped";
   }
+}
+
+/** State label for any incident root asset (pump or filter). */
+export function rootStateLabel(s: SimState, id: string) {
+  if (s.pumps[id]) return pumpStateLabel(s, id);
+  const f = s.filters?.[id];
+  if (f) return f.backwashing ? "Backwashing" : f.clog > 0.02 ? `Blocked (${Math.round(f.clog * 100)}%)` : "In service";
+  return "";
 }
 
 interface HandoverInput {
@@ -99,11 +107,11 @@ export function buildHandover({ sim, tasks, workOrders, incidentMeta, activity, 
 
 function incidentSection(sim: SimState, inc: IncidentRuntime, tasks: MaintenanceTask[], wos: WorkOrder[], meta?: IncidentMeta): string[] {
   const out: string[] = [];
-  const root = PUMP_BY_ID[inc.rootAssetId];
+  const root = ASSET_BY_ID[inc.rootAssetId];
   const backup = inc.backupPumpId ? sim.pumps[inc.backupPumpId] : undefined;
   out.push(`## ${inc.id} — ${inc.title}`);
   out.push(`- Opened ${hm(inc.openedAt)} · owner ${techName(meta?.ownerId)}${meta?.acknowledgedAt ? ` · acknowledged ${hm(meta.acknowledgedAt)}` : " · not acknowledged"}`);
-  out.push(`- Failed equipment: ${root.name} (${root.id}) — ${pumpStateLabel(sim, root.id)}`);
+  out.push(`- Failed equipment: ${root.name} (${root.id}) — ${rootStateLabel(sim, root.id)}`);
   out.push(`- Root cause: ${inc.diagnosis.label} — ${inc.diagnosis.confidence}`);
   out.push(`- Affected tanks: ${inc.affectedTankIds.map((id) => `${TANK_BY_ID[id].name} ${Math.round(sim.tanks[id].flowPct)}%`).join(", ") || "none"}`);
   if (backup && inc.backupPumpId) {
@@ -144,10 +152,10 @@ function incidentSection(sim: SimState, inc: IncidentRuntime, tasks: Maintenance
 }
 
 export function buildWorkOrderContext(sim: SimState, inc: IncidentRuntime): string[] {
-  const root = PUMP_BY_ID[inc.rootAssetId];
+  const root = ASSET_BY_ID[inc.rootAssetId];
   const lines = [
     `Incident ${inc.id} opened ${hm(inc.openedAt)} (${duration(sim.t - inc.openedAt)} at time of issue)`,
-    `${root.name}: ${pumpStateLabel(sim, root.id)} — ${inc.diagnosis.label} (${inc.diagnosis.confidence})`,
+    `${root.name}: ${rootStateLabel(sim, root.id)} — ${inc.diagnosis.label} (${inc.diagnosis.confidence})`,
     ...inc.affectedTankIds.map((id) => `${TANK_BY_ID[id].name}: ${Math.round(sim.tanks[id].flowPct)}% circulation`),
   ];
   if (inc.backupPumpId) lines.push(`${PUMP_BY_ID[inc.backupPumpId].code}: ${pumpStateLabel(sim, inc.backupPumpId)}`);

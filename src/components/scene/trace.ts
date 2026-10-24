@@ -85,7 +85,7 @@ export function useTraceSet(): TraceSet {
       const t = traceFor(selectedId);
       return { edges: new Set(t.edges), nodes: new Set(t.nodes), active: true };
     }
-    if (mode === "incident" && incidentKey) {
+    if (mode === "operations" && incidentKey) {
       const [, root, backup, affected] = incidentKey.split("|");
       const edges = new Set<string>();
       const nodes = new Set<string>([root]);

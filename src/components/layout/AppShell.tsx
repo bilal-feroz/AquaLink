@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { CheckCircle2, Info, TriangleAlert, XCircle } from "lucide-react";
 import { cls } from "@/lib/format";
 import type { ScenarioPreset } from "@/lib/simulation/scenario";
-import { effectiveReducedMotion, useAppStore, type ViewMode } from "@/store/useAppStore";
+import { effectiveReducedMotion, useAppStore } from "@/store/useAppStore";
 import { RightPanel } from "@/components/operations/RightPanel";
 import { Viewer } from "@/components/viewer/Viewer";
 import { Dialogs } from "@/components/dialogs/Dialogs";
@@ -27,8 +27,10 @@ function useBoot() {
       if (scenario === "incident" || scenario === "reference") st.loadPreset("incident");
       else if (scenario === "baseline" || scenario === "reset") st.loadPreset("baseline");
       else if (scenario === "onset") st.loadPreset("stabilizing" as ScenarioPreset["id"]);
+      else if (scenario === "filter") st.loadPreset("filter");
       const mode = params.get("mode");
-      if (mode === "public" || mode === "infrastructure" || mode === "incident") st.setMode(mode as ViewMode);
+      if (mode === "public") st.setMode("public");
+      else if (mode === "operations" || mode === "infrastructure" || mode === "incident") st.setMode("operations");
       const select = params.get("select");
       if (select) st.select(select);
       useAppStore.setState({ hydrated: true });
@@ -77,10 +79,8 @@ function useShortcuts() {
           s.setMode("public");
           break;
         case "2":
-          s.setMode("infrastructure");
-          break;
         case "3":
-          s.setMode("incident");
+          s.setMode("operations");
           break;
         case "Escape":
           if (s.selectedId) s.select(null);
