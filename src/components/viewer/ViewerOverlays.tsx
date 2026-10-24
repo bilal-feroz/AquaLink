@@ -305,7 +305,7 @@ function TimelineList({ events, tone }: { events: SimEvent[]; tone: (k: string, 
     if (el) el.scrollTop = el.scrollHeight;
   }, [events.length]);
   return (
-    <ol ref={ref} className="scroll-thin max-h-[104px] space-y-0.5 overflow-y-auto border-t border-white/10 px-3 pt-1.5 pb-2">
+    <ol ref={ref} className="scroll-thin max-h-[100px] space-y-0.5 overflow-y-auto border-t border-white/10 px-3 pt-1.5 pb-2">
       {events.map((e) => (
         <li key={e.id} className="flex min-w-0 items-center gap-2 text-[12px] leading-5" title={e.detail}>
           <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: tone(e.kind, e.severity) }} />

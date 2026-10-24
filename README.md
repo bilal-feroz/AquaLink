@@ -3,12 +3,22 @@
 **Every tank. Every connection. One clear next action.**
 
 AquaLink is a 3D life-support digital twin for a public aquarium. One facility,
-one 3D world, three ways to understand it:
+one 3D world, two ways to understand it:
 
-| Public View | Infrastructure View | Incident View |
+| Public view | Operations view |
+|---|---|
+| ![Public view](docs/screenshots/public-view.png) | ![Operations view](docs/screenshots/operations-view.png) |
+| The visitor-facing atrium: six habitats, marine life, visitors walking between tanks, compact tank labels, facility status, the Scenario lab and a per-tank marine-life list. | The same building as a dollhouse: the life-support plant hall behind the atrium with pumps, filters, valves and every routed pipe showing live flow. When something fails it reframes onto the fault and everything it affects. |
+
+| Pump C-2 fault | Filter F-1 blockage | Healed |
 |---|---|---|
-| ![Public View](docs/screenshots/public-view.png) | ![Infrastructure View](docs/screenshots/infrastructure-view.png) | ![Incident View](docs/screenshots/incident-view.png) |
-| The visitor-facing atrium: six habitats, marine life, visitors, compact tank labels and facility status. | The same building cut away to reveal B1 pumps, filters, valves, sensors and the routed pipe network with live flow direction. | The same geometry focused on a fault: failed pump, interrupted path, backup flow, affected tanks, root cause, timeline and next actions. |
+| ![Pump C-2 fault](docs/screenshots/pump-incident.png) | ![Filter F-1 blockage](docs/screenshots/filter-incident.png) | ![Heal effect](docs/screenshots/heal-effect.png) |
+| C-2 trips; a red wave runs down its pipes and rings mark Tanks B and C. C-3 picks up Loop 2 at 60 % of its rating. | F-1's sand bed blocks; differential pressure alarms and all four Loop 1 tanks drop to degraded circulation. | After the authorised restart or backwash, green rings sweep the root asset and the tanks it feeds. |
+
+| Plant hall behind the atrium | Following a species |
+|---|---|
+| ![Plant hall](docs/screenshots/plant-hall.png) | ![Species follow](docs/screenshots/species-follow.png) |
+| Orbit 180° from the visitor view (or pick *Plant*) and the back wall cuts away to show the plant hall. | Click a species under its tank and the camera flies in and follows it through the glass. |
 
 All operational data is **simulated** and labelled as such. AquaLink does not
 connect to, or operate, real equipment.
@@ -29,9 +39,10 @@ simulated time.
 
 Useful URLs:
 
-- `http://localhost:3000/?scenario=incident&mode=incident` — the reference incident at 10:24 (C-2 fault, C-3 backup, Tank B 45 %, Tank C 50 %)
+- `http://localhost:3000/?scenario=incident&mode=operations` — the reference incident at 10:24 (C-2 fault, C-3 backup, Tank B 45 %, Tank C 50 %)
 - `http://localhost:3000/?scenario=baseline&mode=public` — healthy baseline
-- `http://localhost:3000/?scenario=onset&mode=infrastructure` — moments after the trip, before the backup starts
+- `http://localhost:3000/?scenario=filter&mode=operations` — sand filter F-1 blocked, at 10:20 (Tanks A, D, E and F at 83 %)
+- `http://localhost:3000/?scenario=onset&mode=operations` — moments after the C-2 trip, before the backup starts
 - add `&select=PMP-C2` (or any asset id) to open an asset's details
 
 Production build:
@@ -43,29 +54,36 @@ npm start
 
 ## Recommended 60–90 second demo
 
-1. **Public aquarium (0–15 s).** Start at `?scenario=baseline`. Orbit the atrium (drag), zoom (wheel), click Tank A — the panel shows readings against habitat limits, supply pumps and a render of the habitat.
-2. **Reveal infrastructure (15–30 s).** Press **2** or choose *Infrastructure View*. The building ghosts away and the B1 plant room appears under the same tanks. Click Pump C-2: its downstream dependents (Tanks B and C), and the C-3 backup path, are traced; everything else dims.
-3. **Trigger the failure (30–45 s).** *Scenario → Simulate C-2 failure.* The engine fast-forwards through the transient: C-2 trips, B and C lose circulation, the low-flow alarm fires, auto-transfer starts C-3 and the loop stabilises at 45 % / 50 %.
-4. **Understand the incident (45–60 s).** Press **3**. Red C-2, amber backup flow, reduced tanks, the root cause (*motor overcurrent — confirmed by the simulated current signal*), backup coverage and the grouped timeline.
-5. **Take action (60–75 s).** Open *Tasks*: assign "Verify C-3 backup operation" to a technician, tick a checklist step, record a note, raise a simulated work order.
-6. **Hand over (75–90 s).** Press **H** (or *Prepare handover*). The report is generated from the current state — incident, affected tanks, backup status, completed and pending tasks, assignees, notes and recent events — and can be copied or downloaded.
-
-Finish with *Scenario → Recovery* to restore normal service, then *Healthy baseline*.
+1. **Public aquarium (0–15 s).** Start at `?scenario=baseline`. Orbit the atrium (drag), zoom (wheel). Under *Habitats & marine life*, click a species (for example Blacktip reef sharks under Tank A): the camera flies into the tank and follows it. Drag to let go.
+2. **Look behind the scenes (15–30 s).** Orbit 180°: the back wall cuts away and the plant hall sits behind the atrium. Press **2** for *Operations*: the whole building becomes a dollhouse with live flow in every pipe. Click Pump C-2 to trace what it feeds; everything else dims.
+3. **Trigger a failure (30–45 s).** In the *Scenario lab*, choose *Run scenario* on **Pump C-2 motor fault**. The camera swings round to the fault, a red wave runs down the pipes from C-2 and rings mark Tanks B and C. The engine fast-forwards the transient: low-flow alarm, auto-transfer to C-3, stable at 45 % / 50 %.
+4. **Understand the incident (45–60 s).** The panel shows C-2's root cause (*motor overcurrent — confirmed by the simulated current signal*), the two affected tanks, backup coverage and recommended actions; the compact incident timeline sits bottom-left.
+5. **Take action (60–75 s).** Open *Tasks*: assign "Verify C-3 backup operation" to a technician, tick a checklist step, record a note, raise a simulated work order. Press **H** for the shift handover, generated from the current state.
+6. **Heal it (75–90 s).** Back in the Scenario lab, choose *Authorized C-2 restart*: green rings sweep C-2 and the tanks as circulation returns. Then try the second scenario, **Sand filter F-1 blockage**, and heal it with *Backwash F-1*.
 
 ## What is in the app
 
 **One shared 3D world (React Three Fiber).** Tanks A–F keep the same IDs and
-coordinates in every mode. Modes change camera, visibility layers, architectural
+coordinates in both modes. Modes change camera, visibility layers, architectural
 ghosting and emphasis — never topology. The scene includes:
 
-- multilevel atrium (L1–L3) with gallery decks, glass balustrades, cove lighting, columns, escalators, skylight and visitors;
+- multilevel atrium (L1–L3) with gallery decks, glass balustrades, cove lighting, columns, escalators, skylight and a reflective floor;
+- visitors who walk from tank to tank, stop to look, and now and then take a photo (with a small flash);
 - six habitats with analytic water volume (Beer–Lambert haze from the view-ray chord through the cylinder), interior caustics and light shafts, Fresnel glass, sand, rocks, corals, anemones, seagrass and mangrove roots;
 - GPU-animated marine life (sharks, rays, a trevally shoal, reef fish, clownfish, seahorses) — counts come from the habitat configuration;
-- the restricted B1 plant room with modeled pumps (motor, coupling guard, volute, nozzles, status beacon), sand filters, valves with actuators and position indicators, sensors, headers, and every pipe routed in 3D, including risers in the service shafts;
-- flow shaders whose direction and speed follow simulated edge flow; a stopped pump never shows flow.
+- the life-support plant hall behind the atrium (not below it) with modeled pumps (motor, coupling guard, volute, nozzles, status beacon), sand filters, valves with actuators and position indicators, sensors, headers, and every pipe routed in 3D under the floor and along the deck soffits; walls between the camera and the subject fade out, so orbiting never ends on a blank wall;
+- flow shaders whose direction and speed follow simulated edge flow; a stopped pump never shows flow;
+- fault and heal effects: a red wave travelling along the affected pipes, pulsing rings and halos on the root asset and every affected tank, and green rings and sparkles when it recovers.
 
-**Labels** are real HTML, projected every frame, occlusion-tested in the public
-view, de-cluttered by priority, and keyboard focusable.
+**Labels** are compact HTML pills with a stem to their asset, projected every
+frame, de-cluttered by priority, and keyboard focusable. Details expand only on
+hover or selection, so labels stay out of the way of the tanks.
+
+**Scenarios.** Two simulated failures, run from the *Scenario lab* under
+Facility status: **Pump C-2 motor fault** (Tanks B and C; healed by an authorised
+restart) and **Sand filter F-1 blockage** (Tanks A, D, E and F; healed by a
+backwash). Each tile shows its progress (trip or clog → alarm → backup or
+degraded → stable → healed). One scenario runs at a time.
 
 **Operations.** Facility status, network overview and flow distribution, a
 tabbed asset inspector (Overview · Live Data · Connections · History), asset
@@ -95,7 +113,7 @@ numbers are documented in **[docs/SIMULATION.md](docs/SIMULATION.md)**.
 
 ## Accessibility
 
-- Keyboard: **1 / 2 / 3** switch modes, **T** text view, **R** reset camera, **F** focus selection, **Esc** clear selection, **Space** pause, **H** handover, **?** shortcuts.
+- Keyboard: **1** Public, **2** Operations, **T** text view, **R** reset camera, **F** focus selection, **Esc** clear selection, **Space** pause, **H** handover, **?** shortcuts.
 - Every 3D label is a focusable button with a descriptive accessible name.
 - **Text view** presents all essential facility, equipment and incident information as tables; it is also the automatic fallback when WebGL is unavailable.
 - Status is never colour-only: every state has text and a distinct icon.
@@ -106,7 +124,7 @@ numbers are documented in **[docs/SIMULATION.md](docs/SIMULATION.md)**.
 
 | Check | Command | Result |
 |---|---|---|
-| Simulation vs. reference scenario | `npm run sim:check` | 31 / 31 checks pass |
+| Simulation vs. reference scenarios | `npm run sim:check` | 39 / 39 checks pass |
 | TypeScript (strict) | `npm run typecheck` | no errors |
 | ESLint | `npm run lint` | no errors |
 | Production build | `npm run build` | succeeds |
@@ -114,8 +132,8 @@ numbers are documented in **[docs/SIMULATION.md](docs/SIMULATION.md)**.
 
 `scripts/acceptance.mjs` drives the real app with `playwright-core` and the
 locally installed Chrome (`CHROME_PATH` overrides the path). It covers: shared
-scene positions across modes, healthy baseline, failure impact, cross-view
-consistency (B 45 % / C 50 % in every view and panel), backup activation, the
+scene positions across both modes, healthy baseline, failure impact, cross-view
+consistency (B 45 % / C 50 % in both views and panels), backup activation, the
 83 % aggregate, asset inspection, real 3D orbit/zoom, the assign → step → note →
 handover workflow, recovery and reset, accessibility checks, and console
 errors / broken images / section navigation.

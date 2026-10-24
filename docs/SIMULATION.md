@@ -35,7 +35,8 @@ Returns: Tanks A, D, E, F ─► RH-1 ─► V-110 ─► FLT-1        Returns: 
 
 The physical routing of each pipe (`PIPE_ROUTES`) is stored separately from the
 graph. The graph says *what* is connected; the routes say *where* the pipe runs
-(B1 headers, risers in the service shafts, branches under the gallery decks).
+(headers in the plant hall behind the atrium, supply and return mains under the
+atrium floor, upper-level branches along the deck soffits).
 
 ## 2. Hydraulic solver
 
@@ -51,6 +52,10 @@ Each simulated second:
 6. Suction and return flows follow from mass balance.
 
 Tank circulation % = accepted tank flow ÷ tank design flow.
+
+A sand filter feeds its loop's duty pump. Its **throughput capacity** is
+`capacity × (1 − blockage)`; a pump fed by a filter can offer no more than that,
+whatever its rating. A clean F-1 (1000 m³/h) never limits C-1.
 
 ## 3. Reference configuration
 
@@ -102,6 +107,36 @@ Recovery (`Recover` control) records an authorised restart of C-2 (30 s ramp). T
 seconds after C-2 is confirmed running, C-3 returns to standby and V-301 closes.
 The incident resolves once the root pump is running and every affected tank has
 been at ≥ 90 % for 30 s.
+
+## 4b. Filter blockage sequence (second scenario)
+
+The *Sand filter F-1 blockage* scenario (`inject-clog FLT-1`) blocks F-1's bed
+linearly from 0 % to **30 %** over **240 s**. Differential pressure across the bed
+is modelled as
+
+```
+ΔP = 18 + 30 × (throughput ÷ loop design)² + 120 × blockage   kPa
+```
+
+so a clean bed at design flow reads 48 kPa. At 30 % blockage F-1 passes
+0.70 × 1000 = 700 m³/h. Loop 1 needs 840 m³/h, and HDR-1 shares the shortfall in
+proportion to design flow, so **every Loop 1 tank settles at 700 ÷ 840 = 83.3 %**
+and F-1 reads **75 kPa**. Loop 2 (Tanks B and C) is untouched. Timeline of the
+preset (blockage starts at 10:04:00):
+
+| Sim time | Event | Rule |
+|---|---|---|
+| 10:05:53 | F-1 high differential pressure; incident opened | ΔP > 62 kPa for 20 s → root cause *confirmed* by the ΔP signal |
+| 10:08:15 | Tanks A, D, E and F circulation degraded (one grouped warning) | Flow < 90 % for 60 s |
+| 10:08:44 | Tanks A, D, E and F stabilised at partial circulation | Affected flows unchanged for 45 s |
+| 10:18:44 | Four tanks remain affected | Status every 10 min while unresolved |
+
+Aggregate circulation at 10:20 is (4 × 83.3 + 2 × 100) ÷ 6 = 88.9 % → **89 %**
+(shortfall 11 %).
+
+**Backwash** (the heal action) reverses the blockage over 90 s. The incident
+resolves once F-1 is clean and every affected tank has been at ≥ 90 % for 30 s —
+10:22:02 when the backwash is started at 10:20:01.
 
 ## 5. Thresholds
 
@@ -160,9 +195,10 @@ Presets (`src/lib/simulation/scenario.ts`, also via URL):
 | Healthy baseline | `?scenario=baseline` | 10:00:00, all normal |
 | Reference incident | `?scenario=incident` | 10:24:00, C-2 fault, C-3 backup, B 45 %, C 50 % |
 | Fault onset | `?scenario=onset` | 10:10:20, C-2 tripped, before backup start |
+| Filter blockage | `?scenario=filter` | 10:20:00, F-1 30 % blocked, Tanks A, D, E and F at 83 % |
 
-`?mode=public|infrastructure|incident` and `?select=<asset id>` can be combined
-with any preset.
+`?mode=public|operations` and `?select=<asset id>` can be combined with any
+preset. The older `mode=infrastructure` and `mode=incident` links open Operations.
 
 ## 9. What the simulation does not do
 
