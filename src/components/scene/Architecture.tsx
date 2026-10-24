@@ -116,19 +116,6 @@ function deckBoxes(): Box[] {
   return out;
 }
 
-const COLUMNS: [number, number][] = [
-  [-9, 2],
-  [9, 2],
-  [-9, -4.5],
-  [9, -4.5],
-  [-9.75, -11],
-  [9.75, -11],
-  [-16.5, 2],
-  [16.5, 2],
-  [-3.5, -12.5],
-  [3.5, -12.5],
-];
-
 function Ceiling({ mats }: { mats: ReturnType<typeof useArchMaterials> }) {
   const geo = useMemo(() => {
     const s = new THREE.Shape();
@@ -279,9 +266,9 @@ export function Architecture() {
       ))}
 
       {/* Columns */}
-      {COLUMNS.map(([x, z], i) => (
+      {BUILDING.columns.map(([x, z], i) => (
         <mesh key={i} material={mats.column} position={[x, BUILDING.roof / 2, z]} raycast={() => null}>
-          <cylinderGeometry args={[0.36, 0.36, BUILDING.roof, 20]} />
+          <cylinderGeometry args={[BUILDING.columnRadius, BUILDING.columnRadius, BUILDING.roof, 20]} />
         </mesh>
       ))}
 

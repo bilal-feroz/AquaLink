@@ -4,7 +4,7 @@
  * deterministic layouts, and kept low-poly for instancing.
  */
 import * as THREE from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { mergeGeometries, mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 export function rng(seed: number) {
   let a = seed >>> 0;
@@ -220,7 +220,11 @@ function displace(g: THREE.BufferGeometry, amount: number, seed: number, flatten
 }
 
 export function rockGeometry(seed: number) {
-  const g = new THREE.IcosahedronGeometry(1, 2);
+  // Weld the polyhedron's vertices so displaced rocks get smooth normals.
+  const base = new THREE.IcosahedronGeometry(1, 3);
+  base.deleteAttribute("normal");
+  base.deleteAttribute("uv");
+  const g = mergeVertices(base);
   g.scale(1, 0.62, 0.85);
   displace(g, 0.22, seed, -0.25);
   return prep(g, 0);

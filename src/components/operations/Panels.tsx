@@ -270,6 +270,75 @@ export function InfrastructurePanel() {
   );
 }
 
+export function IncidentSummaryPanel() {
+  const sim = useAppStore((s) => s.sim);
+  const tasks = useAppStore((s) => s.tasks);
+  const a = useAppStore.getState();
+  const inc = activeIncidents(sim)[0];
+  if (!inc) return <IncidentModePanel />;
+  const root = PUMP_BY_ID[inc.rootAssetId];
+  const itasks = tasks.filter((t) => t.incidentId === inc.id).sort((x, y) => x.priority - y.priority);
+  const next = itasks.find((t) => t.status !== "done");
+  const backup = inc.backupPumpId ? sim.pumps[inc.backupPumpId] : undefined;
+  return (
+    <div className="space-y-3">
+      <Card title={`${inc.id} · Active incident`} id="is-title" action={<SimTag />}>
+        <div className="flex items-start gap-3">
+          <span className="pulse-crit grid size-9 shrink-0 place-items-center rounded-full bg-crit text-white">
+            <TriangleAlert aria-hidden className="size-4.5" />
+          </span>
+          <div>
+            <div className="text-[15px] font-semibold text-ink">{inc.title}</div>
+            <p className="text-[12.5px] text-muted">
+              Open {duration(sim.t - inc.openedAt)} · {inc.diagnosis.label} ({inc.diagnosis.confidence})
+            </p>
+          </div>
+        </div>
+        <ul className="mt-3 space-y-2">
+          <li>
+            <button onClick={() => a.select(root.id)} className="flex w-full items-center justify-between rounded-lg border border-line px-3 py-2 text-left hover:bg-slate-50">
+              <span className="text-[13px] font-medium">Failed: {root.name}</span>
+              <StatusBadge size="sm" info={pumpStatusInfo(sim.pumps[root.id])} />
+            </button>
+          </li>
+          {inc.affectedTankIds.map((id) => (
+            <li key={id}>
+              <button onClick={() => a.select(id)} className="flex w-full items-center justify-between rounded-lg border border-line px-3 py-2 text-left hover:bg-slate-50">
+                <span className="text-[13px] font-medium">
+                  {TANK_BY_ID[id].name} <span className="text-muted">· {TANK_BY_ID[id].habitat.name}</span>
+                </span>
+                <span className="tabular text-[13px] font-semibold text-crit">{Math.round(sim.tanks[id].flowPct)}%</span>
+              </button>
+            </li>
+          ))}
+          {backup && inc.backupPumpId && (
+            <li>
+              <button onClick={() => a.select(inc.backupPumpId!)} className="flex w-full items-center justify-between rounded-lg border border-line px-3 py-2 text-left hover:bg-slate-50">
+                <span className="text-[13px] font-medium">Backup: {PUMP_BY_ID[inc.backupPumpId].name}</span>
+                <StatusBadge size="sm" info={pumpStatusInfo(backup)} />
+              </button>
+            </li>
+          )}
+        </ul>
+        {next && (
+          <div className="mt-3 rounded-lg bg-brand-50 px-3 py-2.5">
+            <div className="text-[11.5px] font-semibold text-brand-600 uppercase">Next action</div>
+            <div className="text-[13px] font-medium text-ink">{next.title}</div>
+          </div>
+        )}
+        <div className="mt-3 flex gap-2">
+          <Button size="sm" variant="primary" onClick={() => a.setSection("incidents")}>
+            Open incident
+          </Button>
+          <Button size="sm" onClick={() => a.setSection("tasks")}>
+            Tasks ({itasks.filter((t) => t.status !== "done").length} open)
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 export function IncidentModePanel() {
   const sim = useAppStore((s) => s.sim);
   const a = useAppStore.getState();

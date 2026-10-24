@@ -55,6 +55,20 @@ export const BUILDING = {
     L2: { y: 6, left: { minX: -24, maxX: -9, minZ: -16, maxZ: 2 }, right: { minX: 9, maxX: 24, minZ: -16, maxZ: 2 }, back: { minX: -9, maxX: 9, minZ: -16, maxZ: -10.5 } },
     L3: { y: 12, left: { minX: -24, maxX: -10.5, minZ: -16, maxZ: -4 }, right: { minX: 10.5, maxX: 24, minZ: -16, maxZ: -4 }, back: { minX: -10.5, maxX: 10.5, minZ: -16, maxZ: -11.5 } },
   },
+  /** Structural columns (x, z), floor to roof. */
+  columns: [
+    [-9, 2],
+    [9, 2],
+    [-9, -4.5],
+    [9, -4.5],
+    [-9.75, -11],
+    [9.75, -11],
+    [-16.5, 2],
+    [16.5, 2],
+    [-3.5, -12.5],
+    [3.5, -12.5],
+  ] as [number, number][],
+  columnRadius: 0.36,
   /** Service shafts that hide the risers feeding the upper-level exhibits. */
   shafts: [
     { id: "SHAFT-W", minX: -24, maxX: -21.3, minZ: -6.2, maxZ: -2.8, top: 6 },

@@ -4,7 +4,7 @@ import { CameraControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { TANKS } from "@/lib/data/facility";
+import { BUILDING, TANKS } from "@/lib/data/facility";
 import { ASSET_BY_ID, TANK_BY_ID } from "@/lib/topology/graph";
 import { effectiveReducedMotion, useAppStore } from "@/store/useAppStore";
 import { CAMERA_PRESETS, LEVEL_PRESETS, type CameraPreset } from "./sceneFx";
@@ -32,12 +32,45 @@ function focusPreset(id: string, camera: THREE.Camera): CameraPreset | null {
   } else {
     dist = 5;
   }
-  // Keep the current viewing direction, pulled slightly above the asset.
-  const dir = camera.position.clone().sub(target).normalize();
-  dir.y = Math.max(dir.y, 0.22);
-  dir.normalize();
-  const pos = target.clone().addScaledVector(dir, dist);
+  // Preferred direction: towards the open atrium for exhibits, the current view otherwise.
+  const base =
+    a.kind === "tank"
+      ? new THREE.Vector3(-target.x * 0.5, 0, 12 - target.z).normalize()
+      : camera.position.clone().sub(target).setY(0).normalize();
+  const candidates: { d: THREE.Vector3; dist: number }[] = [];
+  for (const scale of [1, 0.8, 0.62])
+    for (const yaw of [0, -0.45, 0.45, -0.9, 0.9, -1.4, 1.4])
+      for (const pitch of [0.3, 0.16, 0.5, 0.04]) {
+        const d = base.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+        d.y = pitch;
+        candidates.push({ d: d.normalize(), dist: dist * scale });
+      }
+  const pick = candidates.find((c) => clearLine(target, c.d, c.dist, id)) ?? candidates[0];
+  const pos = target.clone().addScaledVector(pick.d, pick.dist);
   return { position: pos.toArray() as CameraPreset["position"], target: target.toArray() as CameraPreset["target"] };
+}
+
+/** True if the camera line from target along dir is free of columns, shafts and walls. */
+function clearLine(target: THREE.Vector3, dir: THREE.Vector3, dist: number, ownId: string) {
+  const p = new THREE.Vector3();
+  for (let s = 1.5; s <= dist + 0.5; s += 0.5) {
+    p.copy(target).addScaledVector(dir, s);
+    if (p.x < BUILDING.minX + 0.6 || p.x > BUILDING.maxX - 0.6 || p.z < BUILDING.minZ + 0.6) return false;
+    if (p.y > BUILDING.roof - 0.8 || p.y < 0.6) return false;
+    for (const key of ["L2", "L3"] as const) {
+      const d = BUILDING.decks[key];
+      if (Math.abs(p.y - (d.y - 0.22)) > 0.7) continue;
+      for (const r of [d.left, d.right, d.back]) if (p.x > r.minX && p.x < r.maxX && p.z > r.minZ && p.z < r.maxZ) return false;
+    }
+    for (const [cx, cz] of BUILDING.columns) if (Math.hypot(p.x - cx, p.z - cz) < BUILDING.columnRadius + 0.9) return false;
+    for (const sh of BUILDING.shafts) if (p.x > sh.minX - 0.6 && p.x < sh.maxX + 0.6 && p.z > sh.minZ - 0.6 && p.z < sh.maxZ + 0.6 && p.y < sh.top + 0.5) return false;
+    for (const t of TANKS) {
+      if (t.id === ownId) continue;
+      if (p.y < t.position[1] - 0.3 || p.y > t.position[1] + t.plinth + t.height + 0.5) continue;
+      if (Math.hypot(p.x - t.position[0], p.z - t.position[2]) < t.radius + 0.6) return false;
+    }
+  }
+  return true;
 }
 
 export function CameraRig() {
