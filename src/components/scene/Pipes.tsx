@@ -101,7 +101,8 @@ function PipeRun({ edgeId, points, diameter, visual, flow, nominal, showFlow, hi
     overlay.uniforms.uMode.value = mode;
     overlay.uniforms.uTime.value = sceneFx.time;
     const speed = 1.8 * Math.min(1.6, flow / Math.max(nominal, 120));
-    overlay.uniforms.uSpeed.value = speed * sceneFx.motion;
+    // Reduced motion: pulses hold still; their sharp leading edge still shows direction.
+    overlay.uniforms.uSpeed.value = sceneFx.motion < 0.5 ? 0 : speed;
     const target = (showFlow ? 1 : 0) * (dimmed ? 0.18 : highlighted ? 1.35 : 1);
     overlay.uniforms.uIntensity.value += (target - overlay.uniforms.uIntensity.value) * k;
     overlay.uniforms.uHighlight.value = highlighted ? 0.6 : 0;
