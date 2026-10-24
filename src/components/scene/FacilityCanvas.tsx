@@ -142,11 +142,13 @@ function Engineering() {
 function HabitatCaptures() {
   const { gl, scene, size } = useThree();
   const setCaptures = useAppStore((s) => s.setCaptures);
+  const mode = useAppStore((s) => s.mode);
   const done = useRef(false);
   useEffect(() => {
-    if (done.current) return;
+    // Capture once, the first time the solid public building is on screen.
+    if (done.current || mode !== "public") return;
     const id = setTimeout(() => {
-      if (useAppStore.getState().mode !== "public") return;
+      if (useAppStore.getState().mode !== "public" || sceneFx.ghost > 0.01) return;
       done.current = true;
       const out: Record<string, string> = {};
       const cam = new THREE.PerspectiveCamera(40, size.width / size.height, 0.2, 200);
@@ -182,7 +184,7 @@ function HabitatCaptures() {
       setCaptures(out);
     }, 2200);
     return () => clearTimeout(id);
-  }, [gl, scene, size, setCaptures]);
+  }, [gl, scene, size, setCaptures, mode]);
   return null;
 }
 
