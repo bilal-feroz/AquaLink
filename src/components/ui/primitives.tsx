@@ -225,12 +225,52 @@ export function Dialog({ open, onClose, title, children, wide, footer }: { open:
 
 export function EmptyState({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 px-6 py-10 text-center">
-      <span className="grid size-10 place-items-center rounded-full bg-slate-100 text-muted">
-        <Icon aria-hidden className="size-5" />
+    <div className="flex flex-col items-center justify-center gap-2.5 px-6 py-10 text-center">
+      <span className="btn-glossy grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 via-cyan-500 to-brand text-white">
+        <Icon aria-hidden className="size-6" />
       </span>
-      <p className="text-sm font-medium text-ink">{title}</p>
-      {children && <div className="max-w-sm text-[13px] text-muted">{children}</div>}
+      <p className="mt-1 text-[17px] font-semibold tracking-tight text-ink">{title}</p>
+      {children && <div className="max-w-md text-[13.5px] leading-relaxed text-muted">{children}</div>}
+    </div>
+  );
+}
+
+/** Shared page header for the non-3D sections: icon, title, one plain sentence, actions. */
+export function PageHeader({ icon: Icon, title, subtitle, actions, children }: { icon: LucideIcon; title: string; subtitle?: ReactNode; actions?: ReactNode; children?: ReactNode }) {
+  return (
+    <header className="border-b border-white/70 px-6 pt-5 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="btn-glossy grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-sky-400 via-cyan-500 to-brand text-white">
+            <Icon aria-hidden className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-[21px] leading-tight font-semibold tracking-tight text-ink">{title}</h1>
+            {subtitle && <p className="mt-0.5 text-[13px] text-muted">{subtitle}</p>}
+          </div>
+        </div>
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      </div>
+      {children && <div className="mt-4">{children}</div>}
+    </header>
+  );
+}
+
+/** Pill-style single choice used for filters (type, time window, topic). */
+export function Segmented<T extends string | number>({ value, options, onChange, label }: { value: T; options: { id: T; label: ReactNode }[]; onChange: (v: T) => void; label: string }) {
+  return (
+    <div role="radiogroup" aria-label={label} className="glass-tile inline-flex flex-wrap gap-1 rounded-xl p-1">
+      {options.map((o) => (
+        <button
+          key={String(o.id)}
+          role="radio"
+          aria-checked={value === o.id}
+          onClick={() => onChange(o.id)}
+          className={cls("rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors", value === o.id ? "btn-glossy bg-brand text-white" : "text-ink-2 hover:bg-white/80")}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }

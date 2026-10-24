@@ -262,16 +262,18 @@ await page.waitForTimeout(3000);
 // ---------------------------------------------------------------- Test 12
 {
   const sections = [
-    ["Assets", "Asset registry"],
+    ["Assets", "Assets"],
     ["Incidents", "Incidents"],
-    ["Tasks", "Maintenance tasks"],
+    ["Tasks", "Tasks"],
     ["Analytics", "Analytics"],
     ["Settings", "Settings"],
     ["Facility", null],
   ];
   const navOk = [];
   for (const [name, heading] of sections) {
-    await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: new RegExp(`^${name}`) }).click();
+    // Settings lives in the header; everything else in the main navigation rail.
+    if (name === "Settings") await page.getByRole("banner").getByRole("button", { name: "Settings", exact: true }).click();
+    else await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: new RegExp(`^${name}`) }).click();
     await page.waitForTimeout(500);
     if (heading) navOk.push((await page.locator("main h1").first().innerText()).includes(heading));
   }

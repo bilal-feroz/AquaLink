@@ -40,7 +40,12 @@ export function Viewer({ active }: { active: boolean }) {
     >
       {supported && !webglFailed && <FacilityCanvas active={active && !textView} />}
       {supported === null && <SceneLoader step="Loading the 3D engine…" />}
-      {!showText && supported && <SceneLabels />}
+      {/* Labels set their own visibility inline, so hide the whole layer when the view is off screen. */}
+      {!showText && supported && (
+        <div className={active ? "contents" : "hidden"}>
+          <SceneLabels />
+        </div>
+      )}
       {showText && <TextView reason={webglFailed ? "3D rendering is unavailable on this device (WebGL could not start). All facility information is shown as text instead." : undefined} />}
 
       {/* Overlays */}

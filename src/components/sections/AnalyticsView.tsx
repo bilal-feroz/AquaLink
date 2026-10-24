@@ -1,12 +1,13 @@
 "use client";
 
+import { BarChart3 } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { FLOW_THRESHOLDS, PUMPS, TANKS } from "@/lib/data/facility";
-import { cls, hm } from "@/lib/format";
+import { hm } from "@/lib/format";
 import type { SimSample } from "@/lib/simulation/engine";
 import { facilityKpis } from "@/lib/simulation/kpi";
 import { useAppStore } from "@/store/useAppStore";
-import { SimTag } from "@/components/ui/primitives";
+import { PageHeader, Segmented } from "@/components/ui/primitives";
 
 const SERIES = "#2a78d6";
 
@@ -24,9 +25,10 @@ interface MiniChartProps {
 
 /** Single-series line chart with crosshair tooltip (pointer + keyboard). */
 function MiniChart({ title, subtitle, samples, pick, min, max, unit, digits = 0, refs = [] }: MiniChartProps) {
-  const W = 300;
-  const H = 120;
-  const pad = { l: 30, r: 8, t: 8, b: 20 };
+  // Drawn at roughly its on-screen size so axis text stays small and crisp.
+  const W = 540;
+  const H = 170;
+  const pad = { l: 32, r: 8, t: 10, b: 22 };
   const [hover, setHover] = useState<number | null>(null);
   const id = useId();
   const n = samples.length;
@@ -45,7 +47,7 @@ function MiniChart({ title, subtitle, samples, pick, min, max, unit, digits = 0,
   };
 
   return (
-    <figure className="rounded-xl border border-line bg-white p-3">
+    <figure className="glass-tile rounded-2xl p-3.5">
       <figcaption className="flex items-baseline justify-between gap-2">
         <span>
           <span id={`${id}-t`} className="block text-[13px] font-semibold text-ink">
@@ -78,7 +80,7 @@ function MiniChart({ title, subtitle, samples, pick, min, max, unit, digits = 0,
           {ticks.map((t) => (
             <g key={t}>
               <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="#e8ecf1" strokeWidth={1} />
-              <text x={pad.l - 5} y={y(t) + 3.5} textAnchor="end" fontSize={9} fill="#5a6b84" className="tabular">
+              <text x={pad.l - 5} y={y(t) + 3.5} textAnchor="end" fontSize={11} fill="#5a6b84" className="tabular">
                 {t % 1 === 0 ? t : t.toFixed(1)}
               </text>
             </g>
@@ -86,17 +88,17 @@ function MiniChart({ title, subtitle, samples, pick, min, max, unit, digits = 0,
           {refs.map((r) => (
             <g key={r.label}>
               <line x1={pad.l} x2={W - pad.r} y1={y(r.value)} y2={y(r.value)} stroke="#8494aa" strokeWidth={1} strokeDasharray="3 3" />
-              <text x={pad.l + 4} y={r.value >= (min + max) / 2 ? y(r.value) + 10 : y(r.value) - 3} textAnchor="start" fontSize={8.5} fill="#5a6b84">
+              <text x={pad.l + 4} y={r.value >= (min + max) / 2 ? y(r.value) + 10 : y(r.value) - 3} textAnchor="start" fontSize={10.5} fill="#5a6b84">
                 {r.label}
               </text>
             </g>
           ))}
           {n > 1 && (
             <>
-              <text x={pad.l} y={H - 5} fontSize={9} fill="#5a6b84" className="tabular">
+              <text x={pad.l} y={H - 5} fontSize={11} fill="#5a6b84" className="tabular">
                 {hm(samples[0].t)}
               </text>
-              <text x={W - pad.r} y={H - 5} fontSize={9} textAnchor="end" fill="#5a6b84" className="tabular">
+              <text x={W - pad.r} y={H - 5} fontSize={11} textAnchor="end" fill="#5a6b84" className="tabular">
                 {hm(samples[n - 1].t)}
               </text>
             </>
@@ -110,7 +112,7 @@ function MiniChart({ title, subtitle, samples, pick, min, max, unit, digits = 0,
           )}
         </svg>
         {hv && hover !== null && (
-          <div className="pointer-events-none absolute top-0 rounded-lg border border-line bg-white px-2.5 py-1.5 text-[12px] shadow-lg" style={{ left: `${Math.min(70, (x(hover) / W) * 100)}%` }} role="status">
+          <div className="glass pointer-events-none absolute top-0 rounded-lg bg-white/95 px-2.5 py-1.5 text-[12px] shadow-lg" style={{ left: `${Math.min(70, (x(hover) / W) * 100)}%` }} role="status">
             <div className="tabular font-semibold text-ink">
               {pick(hv).toFixed(digits)}
               {unit}
@@ -128,16 +130,18 @@ function MiniChart({ title, subtitle, samples, pick, min, max, unit, digits = 0,
 }
 
 const WINDOWS = [
-  { id: 15, label: "Last 15 min" },
-  { id: 30, label: "Last 30 min" },
-  { id: 60, label: "Last 60 min" },
-  { id: 0, label: "Since 10:00" },
+  { id: 15, label: "15 min" },
+  { id: 30, label: "30 min" },
+  { id: 60, label: "1 hour" },
+  { id: 0, label: "All" },
 ];
+
+type Topic = "circulation" | "pumps" | "water" | "table";
 
 export function AnalyticsView() {
   const sim = useAppStore((s) => s.sim);
   const [win, setWin] = useState(30);
-  const [table, setTable] = useState(false);
+  const [topic, setTopic] = useState<Topic>("circulation");
   const k = facilityKpis(sim);
   const samples = useMemo(() => {
     const from = win ? sim.t - win * 60 : -Infinity;
@@ -150,97 +154,84 @@ export function AnalyticsView() {
 
   return (
     <div className="scroll-thin h-full overflow-y-auto">
-      <header className="border-b border-line px-6 pt-5 pb-4">
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-semibold tracking-tight">Analytics</h1>
-          <SimTag />
-        </div>
-        <p className="mt-1 text-[13px] text-muted">Trends recorded by the simulation every 5 simulated seconds. Every number here is computed from the same state as the 3D twin.</p>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <div role="radiogroup" aria-label="Time window" className="flex gap-1 rounded-lg bg-slate-100 p-1">
-            {WINDOWS.map((w) => (
-              <button key={w.id} role="radio" aria-checked={win === w.id} onClick={() => setWin(w.id)} className={cls("rounded-md px-2.5 py-1 text-[12.5px] font-medium", win === w.id ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink")}>
-                {w.label}
-              </button>
-            ))}
-          </div>
-          <button aria-pressed={table} onClick={() => setTable(!table)} className="rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-medium hover:bg-slate-50">
-            {table ? "Show charts" : "Show table"}
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        icon={BarChart3}
+        title="Analytics"
+        subtitle="How the facility has been doing over time, recorded every few simulated seconds."
+        actions={<Segmented<number> label="Time window" value={win} onChange={setWin} options={WINDOWS} />}
+      />
 
-      <div className="space-y-6 px-6 py-5">
+      <div className="space-y-5 px-6 py-5">
         <section aria-label="Headline indicators" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            { label: "Aggregate circulation", value: `${k.aggregateFlowDisplay}%`, note: `exact ${k.aggregateFlow.toFixed(1)}% · equal-weighted mean of 6 tanks` },
-            { label: "Circulation shortfall", value: `${k.shortfallDisplay}%`, note: "100 − displayed aggregate" },
-            { label: "Circulation availability", value: `${k.availability.toFixed(1)}%`, note: `tank-time ≥ ${FLOW_THRESHOLDS.healthy}% since 10:00` },
-            { label: "Average temperature", value: `${k.avgTemp.toFixed(1)} °C`, note: "simple mean of 6 tank readings" },
+            { label: "Circulation", value: `${k.aggregateFlowDisplay}%`, note: "Average across all six tanks", tone: k.aggregateFlowDisplay >= FLOW_THRESHOLDS.healthy ? "text-ok" : "text-crit" },
+            { label: "Shortfall", value: `${k.shortfallDisplay}%`, note: "Circulation missing right now", tone: k.shortfallDisplay > 0 ? "text-warn" : "text-ink" },
+            { label: "Time healthy", value: `${k.availability.toFixed(1)}%`, note: `Tank time at ${FLOW_THRESHOLDS.healthy}% or more`, tone: "text-ink" },
+            { label: "Water temperature", value: `${k.avgTemp.toFixed(1)} °C`, note: "Average of all tanks", tone: "text-ink" },
           ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-line p-4">
-              <div className="text-[12px] text-muted">{s.label}</div>
-              <div className="tabular mt-1 text-[26px] font-semibold text-ink">{s.value}</div>
-              <div className="text-[11.5px] text-subtle">{s.note}</div>
+            <div key={s.label} className="glass-tile rounded-2xl p-4">
+              <div className="text-[12.5px] text-muted">{s.label}</div>
+              <div className={`tabular mt-1 text-[28px] leading-tight font-semibold ${s.tone}`}>{s.value}</div>
+              <div className="text-[12px] text-subtle">{s.note}</div>
             </div>
           ))}
         </section>
 
-        {!table ? (
-          <>
-            <section aria-labelledby="an-flow">
-              <h2 id="an-flow" className="mb-2 text-[14px] font-semibold">
-                Tank circulation, % of design
-              </h2>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {TANKS.map((t, i) => (
-                  <MiniChart
-                    key={t.id}
-                    title={t.name}
-                    subtitle={t.habitat.name}
-                    samples={samples}
-                    pick={(s) => s.flows[i]}
-                    min={0}
-                    max={100}
-                    unit="%"
-                    refs={[
-                      { value: FLOW_THRESHOLDS.healthy, label: "healthy 90%" },
-                      { value: FLOW_THRESHOLDS.emergencyMinimum, label: "emergency 40%" },
-                    ]}
-                  />
-                ))}
-              </div>
-            </section>
-            <section aria-labelledby="an-pumps">
-              <h2 id="an-pumps" className="mb-2 text-[14px] font-semibold">
-                Pump output, % of rated capacity
-              </h2>
-              <div className="grid gap-3 md:grid-cols-3">
-                {PUMPS.map((p, i) => (
-                  <MiniChart key={p.id} title={p.name} subtitle={`rated ${p.ratedFlow} m³/h · ${p.role}`} samples={samples} pick={(s) => s.pumps[i] * 100} min={0} max={100} unit="%" />
-                ))}
-              </div>
-            </section>
-            <section aria-labelledby="an-do">
-              <h2 id="an-do" className="mb-2 text-[14px] font-semibold">
-                Dissolved oxygen, mg/L
-              </h2>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {TANKS.map((t, i) => (
-                  <MiniChart key={t.id} title={t.name} samples={samples} pick={(s) => s.dissolvedO2[i]} min={5} max={7} unit=" mg/L" digits={2} refs={[{ value: t.habitat.doMin, label: `min ${t.habitat.doMin}` }]} />
-                ))}
-              </div>
-            </section>
-          </>
-        ) : (
-          <section aria-labelledby="an-table" className="overflow-x-auto rounded-xl border border-line">
+        <Segmented<Topic>
+          label="Topic"
+          value={topic}
+          onChange={setTopic}
+          options={[
+            { id: "circulation", label: "Tank circulation" },
+            { id: "pumps", label: "Pumps" },
+            { id: "water", label: "Oxygen" },
+            { id: "table", label: "Table" },
+          ]}
+        />
+
+        {topic === "circulation" && (
+          <section aria-label="Tank circulation, % of design" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {TANKS.map((t, i) => (
+              <MiniChart
+                key={t.id}
+                title={t.name}
+                subtitle={t.habitat.name}
+                samples={samples}
+                pick={(s) => s.flows[i]}
+                min={0}
+                max={100}
+                unit="%"
+                refs={[
+                  { value: FLOW_THRESHOLDS.healthy, label: "healthy" },
+                  { value: FLOW_THRESHOLDS.emergencyMinimum, label: "emergency" },
+                ]}
+              />
+            ))}
+          </section>
+        )}
+        {topic === "pumps" && (
+          <section aria-label="Pump output, % of rated capacity" className="grid gap-3 md:grid-cols-3">
+            {PUMPS.map((p, i) => (
+              <MiniChart key={p.id} title={p.name} subtitle={p.role === "backup" ? "Backup pump" : "Duty pump"} samples={samples} pick={(s) => s.pumps[i] * 100} min={0} max={100} unit="%" />
+            ))}
+          </section>
+        )}
+        {topic === "water" && (
+          <section aria-label="Dissolved oxygen, mg/L" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {TANKS.map((t, i) => (
+              <MiniChart key={t.id} title={t.name} subtitle="Dissolved oxygen" samples={samples} pick={(s) => s.dissolvedO2[i]} min={5} max={7} unit=" mg/L" digits={2} refs={[{ value: t.habitat.doMin, label: "minimum" }]} />
+            ))}
+          </section>
+        )}
+        {topic === "table" && (
+          <section aria-labelledby="an-table" className="glass-tile overflow-x-auto rounded-2xl">
             <h2 id="an-table" className="px-4 pt-3 text-[14px] font-semibold">
-              Circulation samples (1-minute)
+              Circulation, one row per minute
             </h2>
             <table className="mt-2 w-full text-[13px]">
-              <thead className="border-y border-line bg-slate-50 text-left text-[12px] text-muted">
+              <thead className="border-y border-white/80 bg-white/50 text-left text-[12px] text-muted">
                 <tr>
-                  <th className="px-4 py-2 font-semibold">Sim time</th>
+                  <th className="px-4 py-2 font-semibold">Time</th>
                   {TANKS.map((t) => (
                     <th key={t.id} className="px-3 py-2 font-semibold">
                       {t.name}
@@ -248,14 +239,14 @@ export function AnalyticsView() {
                   ))}
                   {PUMPS.map((p) => (
                     <th key={p.id} className="px-3 py-2 font-semibold">
-                      {p.code} out
+                      Pump {p.code}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {tableRows.map((s) => (
-                  <tr key={s.t} className="tabular border-b border-line last:border-0">
+                  <tr key={s.t} className="tabular border-b border-white/70 last:border-0">
                     <td className="px-4 py-1.5 font-medium">{hm(s.t)}</td>
                     {s.flows.map((f, i) => (
                       <td key={i} className="px-3 py-1.5">
@@ -274,18 +265,15 @@ export function AnalyticsView() {
           </section>
         )}
 
-        <section aria-labelledby="an-defs" className="rounded-xl border border-line bg-slate-50 p-4 text-[12.5px] leading-relaxed text-ink-2">
-          <h2 id="an-defs" className="mb-1 text-[13px] font-semibold text-ink">
-            How these numbers are calculated
-          </h2>
-          <ul className="list-disc space-y-0.5 pl-5">
-            <li>Circulation % = delivered tank inlet flow ÷ tank design flow, from the hydraulic solver.</li>
-            <li>Aggregate circulation is the equal-weighted mean of the six tanks: (4 × 100% + 45% + 50%) ÷ 6 = 82.5% in the reference incident, shown as 83%.</li>
-            <li>Shortfall is missing circulation (100% − aggregate), not a share of faulty equipment.</li>
-            <li>Mean pH is an arithmetic mean of readings and is indicative only, because pH is logarithmic.</li>
-            <li>All values are simulated demonstration data, not plant measurements.</li>
+        <details className="glass-tile rounded-2xl px-4 py-3 text-[12.5px] leading-relaxed text-ink-2">
+          <summary className="cursor-pointer text-[13px] font-semibold text-ink">How are these worked out?</summary>
+          <ul className="mt-2 list-disc space-y-0.5 pl-5">
+            <li>Circulation is the water reaching a tank as a share of what it is designed to get.</li>
+            <li>The facility figure is the plain average of the six tanks, e.g. (4 × 100% + 45% + 50%) ÷ 6 ≈ 83% in the pump-fault example.</li>
+            <li>Shortfall is simply 100% minus that average.</li>
+            <li>Everything here is simulated demonstration data.</li>
           </ul>
-        </section>
+        </details>
       </div>
     </div>
   );

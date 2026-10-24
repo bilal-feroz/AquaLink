@@ -12,12 +12,15 @@ import {
   branchCoralGeometry,
   fanCoralGeometry,
   fishGeometry,
+  flowerCoralGeometry,
   rayGeometry,
   rng,
   rockGeometry,
   rootGeometry,
   seahorseGeometry,
   sharkGeometry,
+  spongeGeometry,
+  starfishGeometry,
 } from "./geometry";
 import { sceneFx } from "./sceneFx";
 import {
@@ -58,13 +61,20 @@ const REEF_PALETTE: [string, string, number][] = [
   ["#ff8a3d", "#ffe0b0", 0], // hawkfish
 ];
 
-const CORAL_COLORS = ["#ff6f91", "#c86bfa", "#ff9b54", "#f7d046", "#6ee7b7", "#f472b6", "#fb7185", "#a78bfa", "#fca5a5", "#5eead4"];
+// Saturated reef colours: under the blue "actinic" light these fluoresce (see uGlow).
+const CORAL_COLORS = ["#ff4f8b", "#c86bfa", "#ff8a3d", "#ffd23f", "#4dffb8", "#ff5fd2", "#ff6b6b", "#9b7bff", "#3de8ff", "#b6ff5c", "#ff9ec7", "#ffb84d"];
+const FLOWER_COLORS = ["#ff4fa3", "#ff7a1a", "#ffd23f", "#b6ff5c", "#3de8ff", "#c86bfa", "#ff5f5f", "#7cf5d0"];
+const SPONGE_COLORS = ["#9b4dff", "#ff7a1a", "#ffcc33", "#ff4f8b", "#2fd3ff"];
+const STAR_COLORS = ["#ff5a1f", "#ff3b5c", "#ffb020", "#3d7bff", "#ff7ab8"];
+const SEAGRASS = ["#4f9a4a", "#5fb14f", "#3f8a3c", "#6cbf5a", "#4a9e60"];
+const ALGAE = ["#c2185b", "#e64a19", "#8e3bd6", "#d81b60", "#b8862b", "#7cb342"];
 
 function buildLife(t: TankConfig, waterH: number) {
   const r = rng(t.code.charCodeAt(0) * 977);
   const R = t.radius;
   const lists: Record<GeoKind, FishInstance[]> = { shark: [], ray: [], slim: [], reef: [], deep: [], seahorse: [] };
   const anemones = anemoneSpots(t);
+  let schools = 0;
   const kindsAll = Object.keys(lists) as GeoKind[];
   t.habitat.species.forEach((g, speciesIdx) => {
     const before = kindsAll.map((k) => lists[k].length);
@@ -104,33 +114,37 @@ function buildLife(t: TankConfig, waterH: number) {
         });
     } else if (g.kind === "school") {
       // One coherent shoal sharing an orbit, each fish offset in the body frame.
-      const orbit: FishInstance["orbit"] = [R * 0.46, waterH * 0.58, 0.2, 1.3];
+      // Further shoals circle lower and the other way round, so they never merge.
+      const n = schools++;
+      const orbit: FishInstance["orbit"] = n === 0 ? [R * 0.46, waterH * 0.58, 0.2, 1.3] : [R * 0.62, waterH * 0.3, -0.16, 4.1];
+      const spread = n === 0 ? 1 : 0.6;
       for (let i = 0; i < g.count; i++) {
         lists.slim.push({
           center: [0, 0, 0],
           orbit: [orbit[0], orbit[1], orbit[2], orbit[3]],
-          wobble: [0.25 + r() * 0.2, 0.35 + r() * 0.2, 0.15, 0.36 + r() * 0.08],
-          offset: [(r() - 0.5) * 3.6, (r() - 0.5) * 1.9, (r() - 0.5) * 1.8],
-          colA: "#b9c7d3",
-          colB: "#eef3f7",
-          pattern: 0,
+          wobble: [0.25 + r() * 0.2, 0.35 + r() * 0.2, 0.15, (n === 0 ? 0.36 : 0.3) + r() * 0.08],
+          offset: [(r() - 0.5) * 3.6 * spread, (r() - 0.5) * 1.9 * spread, (r() - 0.5) * 1.8 * spread],
+          colA: g.look?.a ?? "#b9c7d3",
+          colB: g.look?.b ?? "#eef3f7",
+          pattern: g.look?.pattern ?? 0,
         });
       }
     } else if (g.kind === "reef") {
       let placed = 0;
       while (placed < g.count) {
         const groupSize = Math.min(g.count - placed, 1 + Math.floor(r() * 4));
-        const pal = REEF_PALETTE[Math.floor(r() * REEF_PALETTE.length)];
+        const pal: [string, string, number] = g.look ? [g.look.a, g.look.b, g.look.pattern] : REEF_PALETTE[Math.floor(r() * REEF_PALETTE.length)];
         const radius = 0.5 + r() * (R - 1.1);
         const y = waterH * (0.12 + r() * 0.42);
         const speed = (0.18 + r() * 0.3) * (r() > 0.5 ? 1 : -1);
         const phase = r() * 6.28;
-        const deep = pal[2] === 2 || pal[0] === "#f5cf1f";
+        const shape = g.look?.shape ?? (pal[2] === 2 || pal[0] === "#f5cf1f" ? "deep" : "reef");
+        const list = shape === "deep" ? lists.deep : shape === "slim" ? lists.slim : lists.reef;
         for (let k = 0; k < groupSize; k++) {
-          (deep ? lists.deep : lists.reef).push({
+          list.push({
             center: [0, 0, 0],
             orbit: [radius, y, speed, phase],
-            wobble: [0.12 + r() * 0.15, 0.4 + r() * 0.4, 0.2 + r() * 0.2, (t.code === "A" ? 0.32 : 0.22) + r() * 0.08],
+            wobble: [0.12 + r() * 0.15, 0.4 + r() * 0.4, 0.2 + r() * 0.2, (t.code === "A" ? 0.32 : 0.26) + r() * 0.08],
             offset: [(r() - 0.5) * 0.9, (r() - 0.5) * 0.4, (r() - 0.5) * 0.5],
             colA: pal[0],
             colB: pal[1],
@@ -288,18 +302,22 @@ function MarineGroup({ kind, list, water, dimRef }: { kind: GeoKind; list: FishI
 }
 
 interface SceneryItem {
-  kind: "rock" | "branch" | "boulder" | "fan" | "anemone" | "root";
+  kind: "rock" | "branch" | "boulder" | "fan" | "anemone" | "root" | "flower" | "sponge" | "star";
   position: [number, number, number];
   rotation: number;
   scale: [number, number, number];
   color: string;
 }
 
-function buildScenery(t: TankConfig, waterH: number): { items: SceneryItem[]; blades: [number, number, number, number][] } {
+/** A swaying plant blade: position, rotation, height and colour. */
+type Blade = [x: number, z: number, rot: number, h: number, color: string, w?: number];
+
+function buildScenery(t: TankConfig, waterH: number): { items: SceneryItem[]; blades: Blade[] } {
   const r = rng(t.code.charCodeAt(0) * 131 + 7);
   const R = t.radius;
   const items: SceneryItem[] = [];
-  const blades: [number, number, number, number][] = [];
+  const blades: Blade[] = [];
+  const pick = (list: string[]) => list[Math.floor(r() * list.length)];
   const polar = (minD: number, maxD: number, arc = Math.PI * 2, start = 0) => {
     const a = start + r() * arc;
     const d = minD + Math.sqrt(r()) * (maxD - minD);
@@ -309,6 +327,27 @@ function buildScenery(t: TankConfig, waterH: number): { items: SceneryItem[]; bl
     items.push({ kind: "rock", position: [x, s * 0.2 * h, z], rotation: r() * 6.28, scale: [s * (0.9 + r() * 0.4), s * h * (0.8 + r() * 0.5), s * (0.9 + r() * 0.4)], color: ["#6f6a63", "#5c5953", "#7d746a"][Math.floor(r() * 3)] });
   const coral = (kind: SceneryItem["kind"], x: number, y: number, z: number, s: number) =>
     items.push({ kind, position: [x, y, z], rotation: r() * 6.28, scale: [s, s, s], color: CORAL_COLORS[Math.floor(r() * CORAL_COLORS.length)] });
+  // Eye candy shared by the reef-style habitats: flower corals, tube sponges, starfish, coloured algae.
+  const decorate = (flowers: number, sponges: number, stars: number, algae: number, size = 1) => {
+    for (let i = 0; i < flowers; i++) {
+      const [x, z] = polar(0.3, R - 0.4);
+      items.push({ kind: "flower", position: [x, r() * 0.12, z], rotation: r() * 6.28, scale: Array(3).fill((0.8 + r() * 0.7) * size) as [number, number, number], color: pick(FLOWER_COLORS) });
+    }
+    for (let i = 0; i < sponges; i++) {
+      const [x, z] = polar(R * 0.45, R - 0.4);
+      items.push({ kind: "sponge", position: [x, 0, z], rotation: r() * 6.28, scale: Array(3).fill((0.8 + r() * 0.6) * size) as [number, number, number], color: pick(SPONGE_COLORS) });
+    }
+    for (let i = 0; i < stars; i++) {
+      const [x, z] = polar(0.4, R - 0.35);
+      items.push({ kind: "star", position: [x, 0.02, z], rotation: r() * 6.28, scale: Array(3).fill(0.8 + r() * 0.5) as [number, number, number], color: pick(STAR_COLORS) });
+    }
+    for (let i = 0; i < algae; i++) {
+      // Algae grow in small tufts.
+      const [x, z] = polar(0.4, R - 0.3);
+      const color = pick(ALGAE);
+      for (let k = 0; k < 4; k++) blades.push([x + (r() - 0.5) * 0.18, z + (r() - 0.5) * 0.18, r() * 6.28, (0.25 + r() * 0.4) * size, color]);
+    }
+  };
 
   switch (t.habitat.scenery) {
     case "open-ocean": {
@@ -323,10 +362,17 @@ function buildScenery(t: TankConfig, waterH: number): { items: SceneryItem[]; bl
         const [x, z] = polar(2.2, R - 0.8);
         rock(x, z, 0.5 + r() * 0.7);
       }
-      for (let i = 0; i < 26; i++) {
+      for (let i = 0; i < 34; i++) {
         const [x, z] = polar(1.4, R - 0.5);
         const kinds: SceneryItem["kind"][] = ["branch", "boulder", "fan", "branch"];
         coral(kinds[i % kinds.length], x, 0, z, 0.8 + r() * 0.9);
+      }
+      decorate(16, 8, 10, 10, 1.6);
+      // Tall kelp swaying round the edge of the showcase.
+      for (let i = 0; i < 16; i++) {
+        const [x, z] = polar(R - 1.2, R - 0.45);
+        const color = pick(["#7a8f2b", "#9c7a2a", "#6b8e23", "#8aa13a"]);
+        for (let k = 0; k < 3; k++) blades.push([x + (r() - 0.5) * 0.3, z + (r() - 0.5) * 0.3, r() * 6.28, waterH * (0.22 + r() * 0.32), color, 3.2 + r() * 1.6]);
       }
       break;
     }
@@ -335,21 +381,23 @@ function buildScenery(t: TankConfig, waterH: number): { items: SceneryItem[]; bl
       rock(-R * 0.4, -R * 0.1, 0.9);
       rock(R * 0.45, -R * 0.15, 1.0, 1.3);
       rock(R * 0.1, R * 0.35, 0.6);
-      for (let i = 0; i < 22; i++) {
+      for (let i = 0; i < 30; i++) {
         const [x, z] = polar(0.3, R - 0.45);
         const kinds: SceneryItem["kind"][] = ["branch", "boulder", "branch", "fan"];
         coral(kinds[i % kinds.length], x, r() * 0.25, z, 0.5 + r() * 0.5);
       }
+      decorate(12, 5, 5, 9);
       break;
     }
     case "anemone": {
       rock(-R * 0.15, -R * 0.35, 1.0, 1.2);
       rock(R * 0.4, -R * 0.3, 0.8);
       for (const a of anemoneSpots(t)) coral("anemone", a[0], 0.05, a[2], 1.0 + r() * 0.5);
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < 16; i++) {
         const [x, z] = polar(0.4, R - 0.45);
         coral(i % 2 ? "boulder" : "branch", x, 0, z, 0.4 + r() * 0.4);
       }
+      decorate(10, 4, 6, 7);
       break;
     }
     case "seagrass": {
@@ -357,8 +405,9 @@ function buildScenery(t: TankConfig, waterH: number): { items: SceneryItem[]; bl
       rock(-R * 0.45, -R * 0.2, 0.6);
       for (let i = 0; i < 170; i++) {
         const [x, z] = polar(0, R - 0.25);
-        blades.push([x, z, r() * 6.28, 0.6 + r() * 1.3]);
+        blades.push([x, z, r() * 6.28, 0.6 + r() * 1.3, pick(SEAGRASS)]);
       }
+      decorate(7, 2, 7, 0);
       break;
     }
     case "mangrove": {
@@ -367,8 +416,9 @@ function buildScenery(t: TankConfig, waterH: number): { items: SceneryItem[]; bl
       rock(0.2, -R * 0.45, 0.7);
       for (let i = 0; i < 60; i++) {
         const [x, z] = polar(0, R - 0.25);
-        blades.push([x, z, r() * 6.28, 0.3 + r() * 0.6]);
+        blades.push([x, z, r() * 6.28, 0.3 + r() * 0.6, pick(["#5f7d3a", "#6f8f3f", "#55702f"])]);
       }
+      decorate(4, 5, 0, 6);
       break;
     }
   }
@@ -381,7 +431,23 @@ function sceneryGeometry(kind: SceneryItem["kind"], seed: number) {
   if (!SCENERY_GEO.has(key)) {
     const s = 11 + (seed % 3) * 17;
     const g =
-      kind === "rock" ? rockGeometry(s) : kind === "branch" ? branchCoralGeometry(s) : kind === "boulder" ? boulderCoralGeometry(s) : kind === "fan" ? fanCoralGeometry(s) : kind === "anemone" ? anemoneGeometry(s) : rootGeometry(s);
+      kind === "rock"
+        ? rockGeometry(s)
+        : kind === "branch"
+          ? branchCoralGeometry(s)
+          : kind === "boulder"
+            ? boulderCoralGeometry(s)
+            : kind === "fan"
+              ? fanCoralGeometry(s)
+              : kind === "anemone"
+                ? anemoneGeometry(s)
+                : kind === "flower"
+                  ? flowerCoralGeometry(s)
+                  : kind === "sponge"
+                    ? spongeGeometry(s)
+                    : kind === "star"
+                      ? starfishGeometry(s)
+                      : rootGeometry(s);
     SCENERY_GEO.set(key, g);
   }
   return SCENERY_GEO.get(key)!;
@@ -390,10 +456,12 @@ function sceneryGeometry(kind: SceneryItem["kind"], seed: number) {
 function Scenery({ t, waterH, water, dimRef }: { t: TankConfig; waterH: number; water: string; dimRef: React.RefObject<number> }) {
   const { items, blades } = useMemo(() => buildScenery(t, waterH), [t, waterH]);
   const mats = useMemo(() => {
-    const coral = underwaterMaterial({ color: "#ffffff", roughness: 0.75, side: THREE.DoubleSide }, water, waterH, waterH);
+    const coral = underwaterMaterial({ color: "#ffffff", roughness: 0.6, side: THREE.DoubleSide }, water, waterH, waterH);
+    coral.uniforms.uGlow.value = 0.32;
     const rockM = underwaterMaterial({ color: "#ffffff", roughness: 0.95 }, water, waterH, waterH);
     const sand = underwaterMaterial({ color: t.habitat.scenery === "mangrove" ? "#8d7a5c" : "#cdb88f", roughness: 1 }, water, waterH, waterH);
-    const grass = underwaterMaterial({ color: t.habitat.scenery === "mangrove" ? "#5f7d3a" : "#4f9a4a", roughness: 0.8, side: THREE.DoubleSide }, water, waterH, waterH);
+    const grass = underwaterMaterial({ color: "#ffffff", roughness: 0.8, side: THREE.DoubleSide }, water, waterH, waterH);
+    grass.uniforms.uGlow.value = 0.12;
     // Seagrass sway in the vertex shader.
     const prev = grass.material.onBeforeCompile;
     grass.material.onBeforeCompile = (shader, renderer) => {
@@ -476,19 +544,22 @@ function SceneryInstances({ geo, items, material }: { geo: THREE.BufferGeometry;
   return <instancedMesh ref={ref} args={[geo, material, items.length]} raycast={() => null} />;
 }
 
-function BladeInstances({ geo, blades, material }: { geo: THREE.BufferGeometry; blades: [number, number, number, number][]; material: THREE.Material }) {
+function BladeInstances({ geo, blades, material }: { geo: THREE.BufferGeometry; blades: Blade[]; material: THREE.Material }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   useEffect(() => {
     const mesh = ref.current;
     if (!mesh) return;
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
-    blades.forEach(([x, z, rot, h], i) => {
+    const c = new THREE.Color();
+    blades.forEach(([x, z, rot, h, color, w = 1], i) => {
       q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rot);
-      m.compose(new THREE.Vector3(x, 0.05, z), q, new THREE.Vector3(1, h, 1));
+      m.compose(new THREE.Vector3(x, 0.05, z), q, new THREE.Vector3(w, h, 1));
       mesh.setMatrixAt(i, m);
+      mesh.setColorAt(i, c.set(color));
     });
     mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [blades]);
   return <instancedMesh ref={ref} args={[geo, material, blades.length]} raycast={() => null} />;
 }
@@ -512,7 +583,7 @@ export function Habitat({ t, status, selected, hovered, dim, showMarine, emphasi
 
   const mats = useMemo(() => {
     const back = waterBackMaterial(water.shallow, water.deep, glassR - 0.03, waterH);
-    const front = waterFrontMaterial(water.shallow, water.deep, glassR - 0.04, waterH, t.radius > 4 ? 0.032 : 0.085);
+    const front = waterFrontMaterial(water.shallow, water.deep, glassR - 0.04, waterH, t.radius > 4 ? 0.028 : 0.062);
     const surface = waterSurfaceMaterial(water.shallow);
     const glass = glassMaterial();
     const plinth = new THREE.MeshStandardMaterial({ color: "#20252d", roughness: 0.38, metalness: 0.25 });

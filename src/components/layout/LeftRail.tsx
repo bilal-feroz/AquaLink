@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, ClipboardCheck, Database, Home, Settings, TriangleAlert, type LucideIcon } from "lucide-react";
+import { BarChart3, ClipboardCheck, Database, Home, TriangleAlert, type LucideIcon } from "lucide-react";
 import { cls } from "@/lib/format";
 import { activeIncidents } from "@/lib/simulation/engine";
 import { useAppStore, type Section } from "@/store/useAppStore";
@@ -48,9 +48,8 @@ export function LeftRail() {
   };
 
   return (
-    <nav aria-label="Main" className="glass-bar flex w-[78px] shrink-0 flex-col justify-between border-r px-2 py-3">
+    <nav aria-label="Main" className="glass-bar flex w-[78px] shrink-0 flex-col border-r px-2 py-3">
       <ul className="flex flex-col gap-1">{ITEMS.map(item)}</ul>
-      <ul>{item({ id: "settings", label: "Settings", icon: Settings })}</ul>
     </nav>
   );
 }

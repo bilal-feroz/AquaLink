@@ -24,7 +24,8 @@ export interface CameraPreset {
 }
 
 export const CAMERA_PRESETS: Record<"public" | "operations", CameraPreset> = {
-  public: { position: [0, 7.4, 35], target: [0, 6.4, -3] },
+  // Raised three-quarter view over the atrium: all six habitats in sight, Tank E included.
+  public: { position: [10.4, 15.5, 42.9], target: [0, 4, 0.75] },
   // From behind and above: the plant hall in front, the exhibits beyond.
   operations: { position: [15, 27, -60], target: [0, 1.5, -15] },
 };

@@ -1,12 +1,14 @@
 "use client";
 
-import { Bell, ChevronDown, ChevronRight, Clock3, FileText, Keyboard, Settings, Waves } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, Clock3, FileText, Keyboard, Settings } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { CURRENT_USER, FACILITY } from "@/lib/data/facility";
 import { clock, cls, hm } from "@/lib/format";
 import { activeIncidents } from "@/lib/simulation/engine";
 import { useAppStore } from "@/store/useAppStore";
 import { Dot } from "@/components/ui/primitives";
+import mark from "@/assets/aqualink-mark.png";
 
 function usePopover() {
   const [open, setOpen] = useState(false);
@@ -30,10 +32,10 @@ function usePopover() {
 export function Logo() {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="btn-glossy grid size-8 place-items-center rounded-lg bg-gradient-to-br from-sky-400 via-cyan-500 to-brand text-white">
-        <Waves aria-hidden className="size-[18px]" strokeWidth={2.4} />
+      <Image src={mark} alt="" priority className="h-9 w-auto drop-shadow-[0_2px_6px_rgba(14,116,190,0.25)]" />
+      <span className="text-[19px] font-semibold tracking-tight text-ink">
+        <span className="bg-gradient-to-r from-sky-500 to-brand bg-clip-text text-transparent">Aqua</span>Link
       </span>
-      <span className="text-[19px] font-semibold tracking-tight text-ink">AquaLink</span>
     </div>
   );
 }
@@ -42,6 +44,7 @@ export function Header() {
   const sim = useAppStore((s) => s.sim);
   const setMode = useAppStore((s) => s.setMode);
   const setSection = useAppStore((s) => s.setSection);
+  const section = useAppStore((s) => s.section);
   const openDialog = useAppStore((s) => s.openDialog);
   const fastForwarding = useAppStore((s) => s.fastForwarding);
   const playing = useAppStore((s) => s.playing);
@@ -122,7 +125,12 @@ export function Header() {
           )}
         </div>
 
-        <button aria-label="Settings" onClick={() => setSection("settings")} className="grid size-9 place-items-center rounded-lg text-ink-2 hover:bg-slate-100">
+        <button
+          aria-label="Settings"
+          aria-current={section === "settings" ? "page" : undefined}
+          onClick={() => setSection("settings")}
+          className={cls("grid size-9 place-items-center rounded-lg transition-colors", section === "settings" ? "glass-tile text-brand" : "text-ink-2 hover:bg-white/70")}
+        >
           <Settings aria-hidden className="size-[18px]" />
         </button>
 

@@ -310,6 +310,86 @@ export function anemoneGeometry(seed: number) {
   return merge(parts);
 }
 
+/** A cluster of soft-coral "flowers": short stalks, a ring of rounded petals and a centre. */
+export function flowerCoralGeometry(seed: number) {
+  const r = rng(seed);
+  const parts: THREE.BufferGeometry[] = [];
+  const blooms = 3 + Math.floor(r() * 4);
+  for (let b = 0; b < blooms; b++) {
+    const a = r() * Math.PI * 2;
+    const d = b === 0 ? 0 : 0.1 + r() * 0.2;
+    const h = 0.08 + r() * 0.28;
+    const x = Math.cos(a) * d;
+    const z = Math.sin(a) * d;
+    const stalk = new THREE.CylinderGeometry(0.018, 0.03, h, 6);
+    stalk.translate(x, h / 2, z);
+    parts.push(prep(stalk, 1));
+    const petals = 7 + Math.floor(r() * 5);
+    const size = 0.055 + r() * 0.04;
+    const open = 0.5 + r() * 0.5;
+    for (let i = 0; i < petals; i++) {
+      const pa = (i / petals) * Math.PI * 2;
+      const petal = new THREE.SphereGeometry(size, 7, 5);
+      petal.scale(1.7, 0.35, 0.8);
+      petal.translate(size * 1.4, 0, 0);
+      petal.rotateZ(open);
+      petal.rotateY(-pa);
+      petal.translate(x, h, z);
+      parts.push(prep(petal, 0));
+    }
+    const centre = new THREE.SphereGeometry(size * 0.75, 8, 6);
+    centre.translate(x, h + size * 0.3, z);
+    parts.push(prep(centre, 2));
+  }
+  return merge(parts);
+}
+
+/** Tube sponges: a few open-topped tubes of different heights with a lip at the top. */
+export function spongeGeometry(seed: number) {
+  const r = rng(seed);
+  const parts: THREE.BufferGeometry[] = [];
+  const tubes = 3 + Math.floor(r() * 3);
+  for (let i = 0; i < tubes; i++) {
+    const a = (i / tubes) * Math.PI * 2 + r() * 0.6;
+    const d = i === 0 ? 0 : 0.09 + r() * 0.08;
+    const h = 0.25 + r() * 0.5;
+    const rad = 0.05 + r() * 0.035;
+    const tube = new THREE.CylinderGeometry(rad * 1.15, rad, h, 12, 4, true);
+    tube.translate(0, h / 2, 0);
+    tube.rotateZ((r() - 0.5) * 0.35);
+    tube.translate(Math.cos(a) * d, 0, Math.sin(a) * d);
+    parts.push(prep(tube, 0));
+    const lip = new THREE.TorusGeometry(rad * 1.15, rad * 0.22, 6, 14);
+    lip.rotateX(Math.PI / 2);
+    lip.translate(0, h, 0);
+    lip.rotateZ((r() - 0.5) * 0.35);
+    lip.translate(Math.cos(a) * d, 0, Math.sin(a) * d);
+    parts.push(prep(lip, 0));
+  }
+  return merge(parts);
+}
+
+/** A five-armed starfish lying on the sand. */
+export function starfishGeometry(seed: number) {
+  const r = rng(seed);
+  const shape = new THREE.Shape();
+  const outer = 0.17;
+  const inner = 0.065;
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 + Math.PI / 2;
+    const rad = i % 2 === 0 ? outer * (0.9 + r() * 0.2) : inner;
+    const x = Math.cos(a) * rad;
+    const y = Math.sin(a) * rad;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  const g = new THREE.ExtrudeGeometry(shape, { depth: 0.015, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.022, bevelSegments: 2 });
+  g.rotateX(-Math.PI / 2);
+  g.translate(0, 0.03, 0);
+  return prep(g, 0);
+}
+
 export function bladeGeometry() {
   const g = new THREE.PlaneGeometry(0.07, 1, 1, 6);
   g.translate(0, 0.5, 0);

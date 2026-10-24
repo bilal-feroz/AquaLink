@@ -91,7 +91,7 @@ export function HabitatsPanel() {
                         )}
                         title={`Fly to and follow the ${sp.label.toLowerCase()} in ${t.name}`}
                       >
-                        <span aria-hidden className="size-2 rounded-full" style={{ background: SPECIES_DOT[sp.kind] }} />
+                        <span aria-hidden className="size-2 rounded-full" style={{ background: sp.look?.a ?? SPECIES_DOT[sp.kind] }} />
                         {sp.label}
                         <span className={cls("tabular", on ? "text-white/80" : "text-subtle")}>{sp.count}</span>
                         {on ? <Fish aria-hidden className="size-3" /> : <ChevronRight aria-hidden className="size-3 opacity-50" />}

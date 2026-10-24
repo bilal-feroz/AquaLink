@@ -1,21 +1,44 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
-import { FLOW_THRESHOLDS, LOOPS, PUMPS } from "@/lib/data/facility";
+import { Filter, Gauge, Keyboard, MonitorPlay, RotateCcw, Settings, Sparkles, Zap } from "lucide-react";
+import type { ReactNode } from "react";
 import { cls } from "@/lib/format";
 import { useAppStore, type MotionPref, type Quality } from "@/store/useAppStore";
-import { Button, Card, Kbd } from "@/components/ui/primitives";
+import { Kbd, PageHeader } from "@/components/ui/primitives";
 
-function Choice<T extends string>({ value, options, onChange, label }: { value: T; options: { id: T; label: string; hint?: string }[]; onChange: (v: T) => void; label: string }) {
+function Choice<T extends string>({ value, options, onChange, label }: { value: T; options: { id: T; label: string; hint: string }[]; onChange: (v: T) => void; label: string }) {
   return (
-    <div role="radiogroup" aria-label={label} className="grid gap-2 sm:grid-cols-3">
-      {options.map((o) => (
-        <button key={o.id} role="radio" aria-checked={value === o.id} onClick={() => onChange(o.id)} className={cls("rounded-xl border p-3 text-left", value === o.id ? "border-brand bg-brand-50" : "border-line hover:bg-slate-50")}>
-          <div className="text-[13px] font-semibold text-ink">{o.label}</div>
-          {o.hint && <div className="mt-0.5 text-[12px] text-muted">{o.hint}</div>}
-        </button>
-      ))}
+    <div role="radiogroup" aria-label={label} className="grid gap-2">
+      {options.map((o) => {
+        const on = value === o.id;
+        return (
+          <button
+            key={o.id}
+            role="radio"
+            aria-checked={on}
+            onClick={() => onChange(o.id)}
+            className={cls("flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-colors", on ? "border-sky-300 bg-gradient-to-r from-sky-50 to-cyan-50/60 ring-1 ring-sky-200" : "glass-tile hover:bg-white/90")}
+          >
+            <span className={cls("grid size-4 shrink-0 place-items-center rounded-full border-2", on ? "border-brand" : "border-line-strong")}>{on && <span className="size-2 rounded-full bg-brand" />}</span>
+            <span>
+              <span className="block text-[13.5px] font-semibold text-ink">{o.label}</span>
+              <span className="block text-[12px] text-muted">{o.hint}</span>
+            </span>
+          </button>
+        );
+      })}
     </div>
+  );
+}
+
+function Panel({ icon: Icon, title, children, className }: { icon: typeof Settings; title: string; children: ReactNode; className?: string }) {
+  return (
+    <section className={cls("glass-tile rounded-2xl p-5", className)}>
+      <h2 className="mb-3 flex items-center gap-2 text-[14px] font-semibold text-ink">
+        <Icon aria-hidden className="size-4 text-brand" /> {title}
+      </h2>
+      {children}
+    </section>
   );
 }
 
@@ -25,107 +48,89 @@ export function SettingsView() {
   const autoFF = useAppStore((s) => s.autoFastForward);
   const system = useAppStore((s) => s.systemReducedMotion);
   const a = useAppStore.getState();
-  const c3 = PUMPS.find((p) => p.id === "PMP-C3")!;
-  const loop2 = LOOPS.find((l) => l.id === "LOOP-2")!;
+  const demo = (fn: () => void) => () => {
+    fn();
+    a.setSection("facility");
+  };
   return (
     <div className="scroll-thin h-full overflow-y-auto">
-      <header className="border-b border-line px-6 pt-5 pb-4">
-        <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-[13px] text-muted">Display, accessibility and demonstration controls. Preferences are saved in this browser.</p>
-      </header>
-      <div className="grid max-w-5xl gap-4 px-6 py-5 lg:grid-cols-2">
-        <Card title="Motion" id="st-motion">
+      <PageHeader icon={Settings} title="Settings" subtitle="How the twin looks and moves on this device. Saved in this browser." />
+      <div className="grid gap-4 px-6 py-5 md:grid-cols-2 2xl:grid-cols-4">
+        <Panel icon={Sparkles} title="Motion">
           <Choice<MotionPref>
             label="Motion preference"
             value={motion}
             onChange={a.setMotionPref}
             options={[
-              { id: "system", label: "System", hint: system ? "Your OS asks for reduced motion" : "Follows your OS setting" },
-              { id: "reduce", label: "Reduced", hint: "Instant camera, static flow arrows" },
-              { id: "full", label: "Full", hint: "Animated flow and marine life" },
+              { id: "system", label: "Match my device", hint: system ? "Your device asks for less motion" : "Follows your system setting" },
+              { id: "reduce", label: "Reduced", hint: "Instant camera, still water" },
+              { id: "full", label: "Full", hint: "Flowing water and swimming fish" },
             ]}
           />
-        </Card>
-        <Card title="Rendering quality" id="st-quality">
+        </Panel>
+
+        <Panel icon={Gauge} title="Graphics quality">
           <Choice<Quality>
-            label="Rendering quality"
+            label="Graphics quality"
             value={quality}
             onChange={a.setQuality}
             options={[
-              { id: "high", label: "High", hint: "Bloom, outlines, 1.75× pixel ratio" },
-              { id: "balanced", label: "Balanced", hint: "Lighter effects, 1.25×" },
-              { id: "low", label: "Low", hint: "No post-processing" },
+              { id: "high", label: "High", hint: "Glow, outlines, sharpest image" },
+              { id: "balanced", label: "Balanced", hint: "Lighter effects, smoother on laptops" },
+              { id: "low", label: "Low", hint: "No effects, for older machines" },
             ]}
           />
-          <p className="mt-2 text-[12px] text-muted">Quality drops automatically to Balanced if the frame rate declines.</p>
-        </Card>
-        <Card title="Simulation" id="st-sim">
-          <label className="flex items-start gap-2.5 text-[13px]">
+          <p className="mt-3 text-[12px] text-muted">Drops to Balanced on its own if the view starts to stutter.</p>
+        </Panel>
+
+        <Panel icon={MonitorPlay} title="Demo scenarios">
+          <div className="grid gap-2">
+            <button onClick={demo(() => a.runScenario("pump-c2"))} className="btn-glossy flex items-center gap-2.5 rounded-xl bg-crit px-3.5 py-2.5 text-left text-[13.5px] font-semibold text-white">
+              <Zap aria-hidden className="size-4" /> Run pump C-2 failure
+            </button>
+            <button onClick={demo(() => a.runScenario("filter-f1"))} className="btn-glossy flex items-center gap-2.5 rounded-xl bg-amber-500 px-3.5 py-2.5 text-left text-[13.5px] font-semibold text-white">
+              <Filter aria-hidden className="size-4" /> Run filter F-1 blockage
+            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={demo(() => a.loadPreset("incident"))} className="glass-btn rounded-xl px-3 py-2 text-[12.5px] font-medium text-ink">
+                Jump to pump fault
+              </button>
+              <button onClick={demo(() => a.loadPreset("filter"))} className="glass-btn rounded-xl px-3 py-2 text-[12.5px] font-medium text-ink">
+                Jump to filter clog
+              </button>
+            </div>
+            <button onClick={() => a.openDialog({ resetConfirm: true })} className="glass-btn flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-[12.5px] font-medium text-crit">
+              <RotateCcw aria-hidden className="size-3.5" /> Reset to normal
+            </button>
+          </div>
+          <label className="mt-4 flex items-start gap-2.5 text-[13px]">
             <input type="checkbox" checked={autoFF} onChange={(e) => a.setAutoFastForward(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
             <span>
-              <span className="font-medium">Auto fast-forward transients</span>
-              <span className="block text-[12px] text-muted">Runs the simulation at 20× while pumps start, stop or the incident is still settling, then returns to your chosen speed.</span>
+              <span className="font-medium text-ink">Speed through the slow parts</span>
+              <span className="block text-[12px] text-muted">Plays pump start-ups and settling at 20×, then back to normal.</span>
             </span>
           </label>
-          <dl className="mt-3 space-y-1 rounded-lg bg-slate-50 p-3 text-[12.5px]">
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted">Auto-transfer delay ({loop2.name.split(" — ")[0]})</dt>
-              <dd className="font-medium">{loop2.autoTransfer?.delaySec} s</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted">C-3 backup output</dt>
-              <dd className="font-medium">
-                {Math.round((c3.backupOutputFraction ?? 1) * 100)}% of {c3.ratedFlow} m³/h
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted">Low-flow alarm</dt>
-              <dd className="font-medium">
-                &lt; {FLOW_THRESHOLDS.reduced}% for {FLOW_THRESHOLDS.alarmDelaySec} s
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted">Demo emergency threshold</dt>
-              <dd className="font-medium">{FLOW_THRESHOLDS.emergencyMinimum}% circulation</dd>
-            </div>
-          </dl>
-          <p className="mt-2 text-[12px] text-muted">Configured in src/lib/data/facility.ts — see docs/SIMULATION.md.</p>
-        </Card>
-        <Card title="Demonstration presets" id="st-presets">
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => a.loadPreset("incident")}>Reference incident (10:24)</Button>
-            <Button onClick={() => a.loadPreset("stabilizing")}>Fault onset (10:10)</Button>
-            <Button variant="danger" icon={RotateCcw} onClick={() => a.openDialog({ resetConfirm: true })}>
-              Reset scenario
-            </Button>
-          </div>
-          <p className="mt-3 text-[12.5px] text-muted">
-            URL parameters: <code className="rounded bg-slate-100 px-1">?scenario=incident</code>, <code className="rounded bg-slate-100 px-1">?scenario=baseline</code>, <code className="rounded bg-slate-100 px-1">?mode=infrastructure</code>,{" "}
-            <code className="rounded bg-slate-100 px-1">?select=PMP-C2</code>.
-          </p>
-        </Card>
-        <Card title="Keyboard" id="st-keys" className="lg:col-span-2">
-          <ul className="grid gap-x-6 gap-y-1.5 text-[13px] sm:grid-cols-2">
+        </Panel>
+
+        <Panel icon={Keyboard} title="Keyboard shortcuts">
+          <ul className="grid gap-2 text-[13px]">
             {[
-              ["1 / 2 / 3", "Public / Infrastructure / Incident view"],
-              ["T", "Toggle accessible text view"],
+              ["1", "Public view"],
+              ["2", "Operations view"],
+              ["T", "Text view"],
               ["R", "Reset camera"],
-              ["F", "Focus selected asset"],
+              ["F", "Focus selection"],
               ["Esc", "Clear selection"],
-              ["Space", "Pause / resume simulation"],
-              ["H", "Prepare shift handover"],
-              ["?", "Show shortcuts"],
+              ["Space", "Pause / play"],
+              ["H", "Shift handover"],
             ].map(([k, v]) => (
-              <li key={k} className="flex items-center gap-3">
-                <span className="w-24 shrink-0">
-                  <Kbd>{k}</Kbd>
-                </span>
+              <li key={k} className="flex items-center justify-between gap-3">
                 <span className="text-ink-2">{v}</span>
+                <Kbd>{k}</Kbd>
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-[12px] text-muted">Every 3D label is a focusable button; Tab through them to select assets without a mouse.</p>
-        </Card>
+        </Panel>
       </div>
     </div>
   );

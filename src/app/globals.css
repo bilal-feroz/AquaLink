@@ -359,3 +359,14 @@ body {
     animation: none;
   }
 }
+
+/* The logo bobs gently on the loading screen, like something afloat. */
+.loader-logo {
+  animation: loader-float 3.2s ease-in-out infinite;
+}
+
+@keyframes loader-float {
+  50% {
+    transform: translateY(-4px) rotate(-1.5deg);
+  }
+}

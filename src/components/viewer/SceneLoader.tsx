@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import mark from "@/assets/aqualink-mark.png";
 import { cls } from "@/lib/format";
 
 const BUBBLES = [
@@ -32,12 +34,9 @@ export function SceneLoader({ step, done = false }: { step: string; done?: boole
         />
       ))}
       <div role="status" className="glass-dark relative flex w-[300px] flex-col items-center gap-3 rounded-2xl px-6 py-5 text-white">
-        <span className="relative grid size-11 place-items-center rounded-xl bg-gradient-to-br from-sky-400/90 to-cyan-500/90 shadow-[0_0_30px_rgba(56,189,248,0.45)]">
-          <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-            <path d="M2 8c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0" />
-            <path d="M2 13c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0" />
-            <path d="M2 18c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0" />
-          </svg>
+        <span className="relative grid h-16 w-24 place-items-center">
+          <span aria-hidden className="absolute inset-2 rounded-full bg-sky-300/25 blur-xl" />
+          <Image src={mark} alt="" priority className="loader-logo relative h-14 w-auto drop-shadow-[0_0_14px_rgba(125,211,252,0.55)]" />
         </span>
         <div className="text-center">
           <p className="text-[14px] font-semibold tracking-tight">Building the facility twin</p>

@@ -51,9 +51,9 @@ export function TaskCard({ task, defaultOpen = false, showIncident = false }: { 
   const done = task.steps.filter((s) => s.done).length;
 
   return (
-    <article className={cls("rounded-xl border bg-white transition-shadow", open ? "border-line-strong shadow-sm" : "border-line")} aria-labelledby={`${uid}-t`}>
+    <article className={cls("glass-tile rounded-xl transition-shadow", open && "bg-white/85 ring-1 ring-sky-200")} aria-labelledby={`${uid}-t`}>
       <button onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-start gap-3 px-3.5 py-3 text-left">
-        <span className={cls("mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-[12px] font-bold", task.status === "done" ? "bg-ok-bg text-ok" : "bg-brand-50 text-brand")}>{task.priority}</span>
+        <span title={`Priority ${task.priority}`} className={cls("mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-[12px] font-bold", task.status === "done" ? "bg-ok-bg text-ok" : "bg-gradient-to-b from-sky-100 to-cyan-100 text-brand")}>{task.priority}</span>
         <span className="min-w-0 flex-1">
           <span id={`${uid}-t`} className={cls("block text-[13.5px] leading-snug font-medium", task.status === "done" ? "text-muted line-through decoration-1" : "text-ink")}>
             {task.title}
@@ -72,7 +72,7 @@ export function TaskCard({ task, defaultOpen = false, showIncident = false }: { 
       </button>
 
       {open && (
-        <div className="space-y-3 border-t border-line px-3.5 py-3">
+        <div className="space-y-3 border-t border-white/80 px-3.5 py-3">
           <p className="text-[12.5px] leading-relaxed text-ink-2">{task.description}</p>
           <div className="grid grid-cols-2 gap-2">
             <label className="text-[11.5px] font-medium text-muted">
@@ -80,7 +80,7 @@ export function TaskCard({ task, defaultOpen = false, showIncident = false }: { 
               <select
                 value={task.assigneeId ?? ""}
                 onChange={(e) => a.assignTask(task.id, e.target.value || undefined)}
-                className="mt-1 block h-8 w-full rounded-lg border border-line bg-white px-2 text-[13px] text-ink"
+                className="glass-btn mt-1 block h-8 w-full rounded-lg px-2 text-[13px] text-ink"
               >
                 <option value="">Unassigned</option>
                 {TECHNICIANS.map((t) => (
@@ -92,7 +92,7 @@ export function TaskCard({ task, defaultOpen = false, showIncident = false }: { 
             </label>
             <label className="text-[11.5px] font-medium text-muted">
               Status
-              <select value={task.status} onChange={(e) => a.setTaskStatus(task.id, e.target.value as TaskStatus)} className="mt-1 block h-8 w-full rounded-lg border border-line bg-white px-2 text-[13px] text-ink">
+              <select value={task.status} onChange={(e) => a.setTaskStatus(task.id, e.target.value as TaskStatus)} className="glass-btn mt-1 block h-8 w-full rounded-lg px-2 text-[13px] text-ink">
                 {(Object.keys(TASK_STATUS_LABEL) as TaskStatus[]).map((s) => (
                   <option key={s} value={s}>
                     {TASK_STATUS_LABEL[s]}
@@ -107,7 +107,7 @@ export function TaskCard({ task, defaultOpen = false, showIncident = false }: { 
             <ul className="space-y-1">
               {task.steps.map((s) => (
                 <li key={s.id}>
-                  <label className="flex cursor-pointer items-start gap-2.5 rounded-lg px-1.5 py-1 text-[13px] hover:bg-slate-50">
+                  <label className="flex cursor-pointer items-start gap-2.5 rounded-lg px-1.5 py-1 text-[13px] hover:bg-white/80">
                     <input type="checkbox" checked={s.done} onChange={() => a.toggleStep(task.id, s.id)} className="mt-0.5 size-4 shrink-0 accent-brand" />
                     <span className={cls("leading-snug", s.done ? "text-muted line-through" : "text-ink")}>
                       {s.label}
@@ -128,7 +128,7 @@ export function TaskCard({ task, defaultOpen = false, showIncident = false }: { 
                     a.select(id);
                     a.setSection("facility");
                   }}
-                  className="rounded-md bg-slate-100 px-2 py-0.5 text-[11.5px] font-medium text-ink-2 hover:bg-slate-200"
+                  className="rounded-md bg-sky-50 px-2 py-0.5 text-[11.5px] font-medium text-sky-800 ring-1 ring-sky-100 hover:bg-sky-100"
                 >
                   {assetShort(id)}
                 </button>
@@ -141,7 +141,7 @@ export function TaskCard({ task, defaultOpen = false, showIncident = false }: { 
             {task.notes.length === 0 && <p className="text-[12px] text-subtle">No notes yet.</p>}
             <ul className="space-y-1.5">
               {task.notes.map((n) => (
-                <li key={n.id} className="rounded-lg bg-slate-50 px-2.5 py-1.5 text-[12.5px]">
+                <li key={n.id} className="rounded-lg bg-white/70 px-2.5 py-1.5 text-[12.5px]">
                   <span className="tabular font-semibold text-ink-2">{hm(n.at)}</span> <span className="text-muted">{n.by}</span>
                   <div className="text-ink">{n.text}</div>
                 </li>
@@ -163,7 +163,7 @@ export function TaskCard({ task, defaultOpen = false, showIncident = false }: { 
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Record an observation…"
-                className="h-8 min-w-0 flex-1 rounded-lg border border-line px-2.5 text-[13px] placeholder:text-subtle"
+                className="h-8 min-w-0 flex-1 rounded-lg border border-white bg-white/80 px-2.5 text-[13px] outline-none placeholder:text-subtle focus:ring-2 focus:ring-sky-300"
               />
               <Button size="sm" variant="subtle" icon={MessageSquarePlus} type="submit" disabled={!note.trim()}>
                 Add
@@ -171,7 +171,7 @@ export function TaskCard({ task, defaultOpen = false, showIncident = false }: { 
             </form>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+          <div className="flex flex-wrap items-center gap-2 border-t border-white/80 pt-3">
             {workOrder ? (
               <Button size="sm" icon={FileText} onClick={() => a.openDialog({ workOrderId: workOrder.id })}>
                 View {workOrder.id}
@@ -188,7 +188,6 @@ export function TaskCard({ task, defaultOpen = false, showIncident = false }: { 
                 Create work order
               </Button>
             )}
-            <span className="text-[11px] text-subtle">Simulated — not sent to a CMMS</span>
           </div>
 
           {task.history.length > 0 && (

@@ -83,8 +83,8 @@ ghosting and emphasis — never topology. The scene includes:
 
 - multilevel atrium (L1–L3) with gallery decks, glass balustrades, cove lighting, columns, escalators, skylight and a reflective floor;
 - visitors (simple body-and-legs figures) who walk from tank to tank, stop to look, and now and then lean in to take a photo with a small camera flash;
-- six habitats with analytic water volume (Beer–Lambert haze from the view-ray chord through the cylinder), interior caustics and light shafts, Fresnel glass, sand, rocks, corals, anemones, seagrass and mangrove roots;
-- GPU-animated marine life (sharks, rays, a trevally shoal, reef fish, clownfish, seahorses) — counts come from the habitat configuration;
+- six habitats with analytic water volume (Beer–Lambert haze from the view-ray chord through the cylinder), interior caustics and light shafts, Fresnel glass, sand, rocks, branching, brain and fan corals, flower corals, tube sponges, starfish, kelp, coloured algae, anemones, seagrass and mangrove roots; corals and plants fluoresce under the habitat light so the colour carries through the water;
+- GPU-animated marine life with 28 species groups — reef sharks, cownose rays, trevally and snapper shoals, yellow and blue tangs, bannerfish, anthias, chromis, royal grammas, flame angelfish, Moorish idols, six-line wrasse, butterflyfish, moonyfish, scats, clownfish, damsels, firefish, seahorses, pipefish and mandarin dragonets. Each species has its own colours and pattern (`look` in `facility.ts`), and the counts in the panels come from the same configuration;
 - the life-support plant hall behind the atrium (not below it) with modeled pumps (motor, coupling guard, volute, nozzles, status beacon), sand filters, valves with actuators and position indicators, sensors, headers, and every pipe routed in 3D under the floor and along the deck soffits; walls between the camera and the subject fade out, so orbiting never ends on a blank wall;
 - flow shaders whose direction and speed follow simulated edge flow; a stopped pump never shows flow;
 - fault and heal effects: a red wave travelling along the affected pipes, pulsing rings and halos on the root asset and every affected tank, and green rings and sparkles when it recovers.
@@ -103,7 +103,12 @@ longer for bigger moves. Grabbing the view stops a glide immediately.
 
 **Look and feel.** Frosted-glass panels over a soft aqua backdrop, glossy
 action buttons, and frosted-water controls over the 3D view with a lit aqua
-lens marking the active choice.
+lens marking the active choice. The public view opens on a raised
+three-quarter view of the atrium with all six habitats in sight. Assets,
+Incidents, Tasks, Analytics and Settings share one plain layout: a title, one
+sentence on what the page is for, and the few controls it needs. The logo lives
+in `src/assets/aqualink-mark.png` (tab icons in `src/app/icon.png` and
+`apple-icon.png`).
 
 **Scenarios.** Two simulated failures, run from the *Scenario lab* under
 Facility status: **Pump C-2 motor fault** (Tanks B and C; healed by an authorised

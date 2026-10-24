@@ -29,12 +29,25 @@ export type SpeciesKind =
   | "seahorse"
   | "mangrove";
 
+/** How a species is drawn: body colours, colour pattern and body shape. */
+export interface SpeciesLook {
+  /** Main body colour. */
+  a: string;
+  /** Secondary colour (belly, bands, fins). */
+  b: string;
+  /** 0 countershaded, 1 vertical bands, 2 two-tone, 3 horizontal stripes. */
+  pattern: 0 | 1 | 2 | 3;
+  shape?: "reef" | "deep" | "slim";
+}
+
 export interface SpeciesGroup {
   kind: SpeciesKind;
   label: string;
   /** Number of animals rendered in the scene (and reported in panels). */
   count: number;
   note?: string;
+  /** Fixed look for a single species; mixed groups draw from a reef palette. */
+  look?: SpeciesLook;
 }
 
 export interface Habitat {

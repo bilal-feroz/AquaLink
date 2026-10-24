@@ -375,10 +375,10 @@ export function marineMaterial(water: string, style: SwimStyle) {
         float diff = max(dot(N, L), 0.0);
         float spec = pow(max(dot(reflect(-L, N), V), 0.0), 28.0);
         float caus = causticPattern(vWorld.xz * 0.35, uTime * 0.4) * max(N.y, 0.0);
-        vec3 col = base * (0.32 + 0.85 * diff) + vec3(0.9, 0.95, 1.0) * spec * 0.35 + uWater * caus * 0.35;
+        vec3 col = base * (0.42 + 0.82 * diff) + base * 0.12 + vec3(0.9, 0.95, 1.0) * spec * 0.4 + uWater * caus * 0.35;
         // Underwater absorption: distance + depth tint towards the water colour.
         float dist = length(cameraPosition - vWorld);
-        float fogK = clamp(dist / 70.0, 0.0, 0.55) + clamp(-vDepth * 0.02, 0.0, 0.15);
+        float fogK = clamp(dist / 90.0, 0.0, 0.45) + clamp(-vDepth * 0.02, 0.0, 0.12);
         col = mix(col, uWater * 0.55, fogK);
         col = mix(col, col * 0.3 + vec3(0.02, 0.04, 0.07), uDim);
         gl_FragColor = vec4(col, 1.0);
@@ -398,6 +398,8 @@ export interface UnderwaterUniforms {
   uTop: { value: number };
   uDepthRange: { value: number };
   uDim: { value: number };
+  /** Fluorescence under reef lighting: adds the instance colour back as light (0 = none). */
+  uGlow: { value: number };
 }
 
 export function underwaterMaterial(opts: THREE.MeshStandardMaterialParameters, water: string, top: number, depthRange: number) {
@@ -408,6 +410,7 @@ export function underwaterMaterial(opts: THREE.MeshStandardMaterialParameters, w
     uTop: { value: top },
     uDepthRange: { value: depthRange },
     uDim: { value: 0 },
+    uGlow: { value: 0 },
   };
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -428,7 +431,7 @@ export function underwaterMaterial(opts: THREE.MeshStandardMaterialParameters, w
       .replace(
         "#include <common>",
         `#include <common>
-        uniform float uTime; uniform vec3 uWater; uniform float uTop; uniform float uDepthRange; uniform float uDim;
+        uniform float uTime; uniform vec3 uWater; uniform float uTop; uniform float uDepthRange; uniform float uDim; uniform float uGlow;
         varying vec3 vUWWorld; varying vec3 vUWNormal;
         ${CAUSTIC_GLSL}`,
       )
@@ -438,7 +441,11 @@ export function underwaterMaterial(opts: THREE.MeshStandardMaterialParameters, w
         float uwDepth = clamp((uTop - vUWWorld.y) / uDepthRange, 0.0, 1.0);
         float uwC = causticPattern(vUWWorld.xz * 0.32, uTime * 0.4) * clamp(vUWNormal.y * 0.8 + 0.4, 0.0, 1.0);
         gl_FragColor.rgb += vec3(0.55, 0.85, 1.0) * uwC * 0.38 * (1.0 - uwDepth * 0.5);
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, uWater * 0.45, uwDepth * 0.38);
+        #if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )
+          // Corals and plants fluoresce under the habitat's actinic light.
+          gl_FragColor.rgb += vColor * uGlow * (1.0 - uwDepth * 0.45);
+        #endif
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, uWater * 0.45, uwDepth * 0.3);
         gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * 0.3 + vec3(0.02, 0.04, 0.07), uDim);`,
       );
   };
