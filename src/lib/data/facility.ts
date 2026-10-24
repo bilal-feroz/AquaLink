@@ -80,7 +80,7 @@ export const TANKS: TankConfig[] = [
       phRange: [7.7, 8.3],
       doMin: 5.5,
       scenery: "open-ocean",
-      waterTint: { shallow: "#3fb6d3", deep: "#062c4f" },
+      waterTint: { shallow: "#2ea6cf", deep: "#03213f" },
       species: [
         { kind: "shark", label: "Blacktip reef sharks", count: 3 },
         { kind: "ray", label: "Cownose rays", count: 4 },
