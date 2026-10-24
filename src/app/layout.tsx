@@ -17,8 +17,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
-      <body>{children}</body>
+    // Browser extensions (e.g. ones that add `webcrx` attributes) edit <html> and <body> before
+    // React hydrates. This only ignores attribute differences on these two tags, not the app inside.
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} suppressHydrationWarning>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }
