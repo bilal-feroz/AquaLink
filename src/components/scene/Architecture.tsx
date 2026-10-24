@@ -262,7 +262,7 @@ export function Architecture() {
   return (
     <group>
       {/* Level 1 slab (also the ceiling of the B1 plant room) */}
-      <BoxMesh b={{ min: [BUILDING.minX, -BUILDING.slab, BUILDING.minZ], max: [BUILDING.maxX, 0, BUILDING.maxZ] }} material={mats.floor} edges edgeMat={mats.edges} />
+      <BoxMesh b={{ min: [BUILDING.minX, -BUILDING.slab, BUILDING.minZ], max: [BUILDING.maxX, 0, BUILDING.entranceZ] }} material={mats.floor} edges edgeMat={mats.edges} />
       <mesh material={mats.inlay} position={[tankA.position[0], 0.006, tankA.position[2]]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
         <ringGeometry args={[tankA.radius + 0.9, tankA.radius + 1.05, 96]} />
       </mesh>

@@ -8,6 +8,7 @@ import type { IncidentRuntime, SimState } from "@/lib/simulation/engine";
 import { pumpStatusInfo, tankStatusInfo } from "@/lib/status";
 import { PUMP_BY_ID, TANK_BY_ID } from "@/lib/topology/graph";
 import { techName } from "@/lib/workflow/handover";
+import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "@/store/useAppStore";
 import { TaskCard } from "@/components/operations/TaskCard";
 import { Button, EmptyState, SimTag, StatusBadge } from "@/components/ui/primitives";
@@ -29,9 +30,9 @@ export function severityOf(sim: SimState, inc: IncidentRuntime): { label: string
 
 function IncidentDetail({ inc }: { inc: IncidentRuntime }) {
   const sim = useAppStore((s) => s.sim);
-  const tasks = useAppStore((s) => s.tasks.filter((t) => t.incidentId === inc.id).sort((a, b) => a.priority - b.priority));
+  const tasks = useAppStore(useShallow((s) => s.tasks.filter((t) => t.incidentId === inc.id).sort((a, b) => a.priority - b.priority)));
   const meta = useAppStore((s) => s.incidentMeta[inc.id]);
-  const workOrders = useAppStore((s) => s.workOrders.filter((w) => w.incidentId === inc.id));
+  const workOrders = useAppStore(useShallow((s) => s.workOrders.filter((w) => w.incidentId === inc.id)));
   const a = useAppStore.getState();
   const [note, setNote] = useState("");
   const sev = severityOf(sim, inc);

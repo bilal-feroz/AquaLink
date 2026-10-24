@@ -45,6 +45,8 @@ export const BUILDING = {
   maxX: 24,
   minZ: -16,
   maxZ: 14,
+  /** Entrance plaza floor extends past the atrium envelope towards the visitor entrance. */
+  entranceZ: 30,
   roof: 18,
   slab: 0.5,
   plant: { minX: -24, maxX: 24, minZ: -14, maxZ: 12, floor: -6, ceiling: -0.5 },

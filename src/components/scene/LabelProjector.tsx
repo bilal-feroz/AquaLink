@@ -35,7 +35,7 @@ export function LabelProjector() {
       m.updateMatrixWorld(true);
       list.push({ mesh: m, architectural: true });
     };
-    box(BUILDING.minX, -BUILDING.slab, BUILDING.minZ, BUILDING.maxX, 0, BUILDING.maxZ);
+    box(BUILDING.minX, -BUILDING.slab, BUILDING.minZ, BUILDING.maxX, 0, BUILDING.entranceZ);
     for (const key of ["L2", "L3"] as const) {
       const d = BUILDING.decks[key];
       for (const p of [d.left, d.right, d.back]) box(p.minX, d.y - 0.45, p.minZ, p.maxX, d.y, p.maxZ);

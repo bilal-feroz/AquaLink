@@ -48,6 +48,7 @@ export function CameraRig() {
   const nonce = useAppStore((s) => s.cameraNonce);
   const reduced = useAppStore(effectiveReducedMotion);
   const first = useRef(true);
+  const lastDist = useRef(40);
 
   const size = useThree((s) => s.size);
   const go = (p: CameraPreset, smooth = true, frame = false) => {
@@ -61,16 +62,29 @@ export function CameraRig() {
       const k = Math.min(1.6, Math.max(1, 1.62 / aspect));
       pos = [p.target[0] + (pos[0] - p.target[0]) * k, p.target[1] + (pos[1] - p.target[1]) * k, p.target[2] + (pos[2] - p.target[2]) * k];
     }
+    lastDist.current = Math.hypot(pos[0] - p.target[0], pos[1] - p.target[1], pos[2] - p.target[2]);
     void c.setLookAt(...pos, ...p.target, smooth && !reduced);
   };
 
   // Mode / level / reset transitions.
   useEffect(() => {
     const p = level ? LEVEL_PRESETS[level] : CAMERA_PRESETS[mode];
-    go(p, !first.current, true);
+    go(p, !first.current, !level);
     first.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, level, nonce]);
+
+  // Keep the framed content above the incident timeline card: shift the view
+  // centre up by moving the camera down in screen space.
+  const timeline = useAppStore((s) => s.mode === "incident" && s.showTimeline && s.sim.incidents.length > 0 && !s.textView);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const dist = lastDist.current;
+    const visible = 2 * dist * Math.tan(((camera as THREE.PerspectiveCamera).fov * Math.PI) / 360);
+    void c.setFocalOffset(0, timeline ? visible * 0.135 : 0, 0, !reduced);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeline, mode, level, nonce]);
 
   // Focus requests (double-click, focus button, keyboard).
   useEffect(() => {

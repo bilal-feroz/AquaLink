@@ -68,7 +68,7 @@ export function Viewer({ active }: { active: boolean }) {
         {!showText && (
           <div className="flex flex-col gap-3">
             {mode === "incident" && (
-              <div className="max-w-[calc(100%-210px)]">
+              <div className="max-w-[min(860px,calc(100%-210px))]">
                 <IncidentTimelineOverlay />
               </div>
             )}

@@ -25,8 +25,8 @@ export interface CameraPreset {
 
 export const CAMERA_PRESETS: Record<"public" | "infrastructure" | "incident", CameraPreset> = {
   public: { position: [0, 7.4, 35], target: [0, 6.4, -3] },
-  infrastructure: { position: [3, 17, 33], target: [0, -0.8, -1] },
-  incident: { position: [27, 9.5, 26], target: [9.5, 0.5, -1] },
+  infrastructure: { position: [2, 22, 37], target: [0, 1.8, -1.5] },
+  incident: { position: [24.5, 19.5, 45], target: [7.5, 4.6, -2.5] },
 };
 
 export const LEVEL_PRESETS: Record<FloorId, CameraPreset> = {

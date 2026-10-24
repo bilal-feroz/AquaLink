@@ -54,9 +54,15 @@ export function traceFor(assetId: string): { edges: string[]; nodes: string[] } 
   } else if (a.kind === "sensor") {
     return { edges: [], nodes: [assetId] };
   } else {
-    const down = downstreamEdges(assetId).map((e) => e.id);
+    const downEdges = downstreamEdges(assetId);
+    const down = downEdges.map((e) => e.id);
     const up = incoming(assetId, ["suction", "supply"]).map((e) => e.id);
     edges = [...down, ...up];
+    // Other sources feeding the same headers (e.g. the backup pump for a primary).
+    if (a.kind === "pump") {
+      const headers = new Set(downEdges.map((e) => e.to).filter((n) => ASSET_BY_ID[n]?.kind === "junction"));
+      for (const h of headers) for (const e of upstreamEdges(h)) edges.push(e.id);
+    }
     if (a.kind === "filter") edges.push(...EDGES.filter((e) => e.to === assetId).map((e) => e.id));
   }
   const nodes = new Set<string>([assetId]);

@@ -384,7 +384,7 @@ export function IncidentTimelineOverlay() {
   const tone = (k: string) => (k === "fault" || k === "alarm" || k === "status" ? "#d1242f" : k === "stable" ? "#e39a12" : k === "transfer" || k === "backup" || k === "command" ? "#1d6fe0" : "#15803d");
   return (
     <section aria-label={`${inc.id} timeline`} className="pointer-events-auto rounded-2xl border border-line bg-white/95 shadow-2xl backdrop-blur">
-      <header className="flex items-center justify-between gap-3 px-4 pt-3 pb-1.5">
+      <header className="flex items-center justify-between gap-3 px-4 pt-2.5 pb-1">
         <h2 className="flex items-center gap-2 text-[15px] font-semibold text-ink">
           Incident Timeline
           <span className="text-[12px] font-medium text-muted">
@@ -396,9 +396,9 @@ export function IncidentTimelineOverlay() {
         </button>
       </header>
       {show && (
-        <ol className="scroll-thin grid max-h-[132px] grid-flow-col grid-rows-3 gap-x-8 gap-y-1 overflow-x-auto px-4 pb-3">
+        <ol className="scroll-thin grid max-h-[120px] grid-flow-col grid-rows-3 gap-x-8 gap-y-0.5 overflow-x-auto px-4 pb-2.5">
           {events.map((e) => (
-            <li key={e.id} className="flex min-w-0 items-center gap-2.5 text-[13.5px]" title={e.detail}>
+            <li key={e.id} className="flex min-w-0 items-center gap-2.5 text-[13px]" title={e.detail}>
               <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: tone(e.kind) }} />
               <span className="tabular w-11 shrink-0 font-semibold text-ink">{hm(e.t)}</span>
               <span className="truncate text-ink-2">{e.title}</span>

@@ -36,6 +36,7 @@ import {
   upstreamEdges,
 } from "@/lib/topology/graph";
 import { techName } from "@/lib/workflow/handover";
+import { useShallow } from "zustand/react/shallow";
 import { useAppStore, type PanelTab } from "@/store/useAppStore";
 import { createInitialState } from "@/lib/simulation/engine";
 import { AssetPreview } from "./AssetPreview";
@@ -115,7 +116,7 @@ function incidentFor(sim: SimState, id: string): IncidentRuntime | undefined {
 }
 
 function RecommendedActions({ incidentId }: { incidentId: string }) {
-  const tasks = useAppStore((s) => s.tasks.filter((t) => t.incidentId === incidentId).sort((a, b) => a.priority - b.priority));
+  const tasks = useAppStore(useShallow((s) => s.tasks.filter((t) => t.incidentId === incidentId).sort((a, b) => a.priority - b.priority)));
   const setSection = useAppStore((s) => s.setSection);
   if (!tasks.length) return null;
   const top = tasks.filter((t) => t.status !== "done").slice(0, 3);
@@ -169,22 +170,18 @@ function BackupCoverage({ sim, inc }: { sim: SimState; inc: IncidentRuntime }) {
   const meets = minFlow >= FLOW_THRESHOLDS.emergencyMinimum;
   return (
     <Row icon={ShieldCheck} label="Backup Coverage">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="font-medium text-ink">
-            {code} {active ? `online (${Math.round(bk.output * 100)}%)` : bk.mode === "starting" ? "starting" : bk.mode === "standby" ? "standby — not yet started" : pumpStatusInfo(bk).label}
-          </div>
-          <p className="text-[12px] text-muted">{active ? "Temporary, partial support of the loop" : "Auto-transfer configured after 120 s"}</p>
-        </div>
-        {active && (
-          <span
-            title={`Every affected tank is at or above the ${FLOW_THRESHOLDS.emergencyMinimum}% demonstration emergency threshold. This is not a guarantee of biological safety.`}
-            className={cls("shrink-0 rounded-lg px-2 py-1 text-[11.5px] font-semibold", meets ? "bg-ok-bg text-ok" : "bg-crit-bg text-crit")}
-          >
-            {meets ? `Meets ${FLOW_THRESHOLDS.emergencyMinimum}% threshold` : `Below ${FLOW_THRESHOLDS.emergencyMinimum}%`}
-          </span>
-        )}
+      <div className="font-medium text-ink">
+        {code} {active ? `online (${Math.round(bk.output * 100)}%)` : bk.mode === "starting" ? "starting" : bk.mode === "standby" ? "standby — not yet started" : pumpStatusInfo(bk).label}
       </div>
+      <p className="text-[12px] text-muted">{active ? "Temporary, partial support of the loop" : "Auto-transfer configured after 120 s"}</p>
+      {active && (
+        <span
+          title={`Every affected tank is at or above the ${FLOW_THRESHOLDS.emergencyMinimum}% demonstration emergency threshold. This is not a guarantee of biological safety.`}
+          className={cls("mt-1.5 inline-block rounded-lg px-2 py-1 text-[11.5px] font-semibold", meets ? "bg-ok-bg text-ok" : "bg-crit-bg text-crit")}
+        >
+          {meets ? `Sufficient vs ${FLOW_THRESHOLDS.emergencyMinimum}% demo threshold` : `Below ${FLOW_THRESHOLDS.emergencyMinimum}% demo threshold`}
+        </span>
+      )}
     </Row>
   );
 }
@@ -271,7 +268,7 @@ function TankOverview({ id, sim }: { id: string; sim: SimState }) {
   const r = tankReading(sim, id);
   const infra = tankInfrastructure(id);
   const inc = incidentFor(sim, id);
-  const tasks = useAppStore((s) => s.tasks.filter((x) => x.assetIds.includes(id) && x.status !== "done"));
+  const tasks = useAppStore(useShallow((s) => s.tasks.filter((x) => x.assetIds.includes(id) && x.status !== "done")));
   const h = t.habitat;
   const backupActive = infra.backupPumps.some((p) => sim.pumps[p].covering && sim.pumps[p].mode === "running");
   return (
@@ -494,7 +491,7 @@ function Connections({ id, sim }: { id: string; sim: SimState }) {
 }
 
 function History({ id, sim }: { id: string; sim: SimState }) {
-  const tasks = useAppStore((s) => s.tasks.filter((t) => t.assetIds.includes(id) || t.assetIds[0] === id));
+  const tasks = useAppStore(useShallow((s) => s.tasks.filter((t) => t.assetIds.includes(id) || t.assetIds[0] === id)));
   const events = sim.events.filter((e) => e.assets.includes(id));
   const entries = [
     ...events.map((e) => ({ at: e.t, text: e.title, kind: "event" as const, tone: e.severity })),

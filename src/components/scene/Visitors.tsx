@@ -59,6 +59,8 @@ function placeVisitors(): Spot[] {
     }
   }
   for (let i = 0; i < 26; i++) add(-20 + r() * 40, 0, 9 + r() * 4.5);
+  // Entrance plaza in the foreground.
+  for (let i = 0; i < 44; i++) add(-22 + r() * 44, 0, 14 + r() * 13);
 
   // Upper galleries: along the rails and around exhibits.
   for (const key of ["L2", "L3"] as const) {
