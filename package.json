@@ -1,0 +1,39 @@
+{
+  "name": "aqualink",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AquaLink — 3D aquarium life-support digital twin and incident-response platform.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "sim:check": "tsx scripts/sim-check.ts"
+  },
+  "dependencies": {
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.2",
+    "@react-three/postprocessing": "3.2.2",
+    "lucide-react": "1.61.0",
+    "next": "15.5.28",
+    "postprocessing": "6.39.5",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
+    "three": "0.180.0",
+    "zustand": "5.0.16"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "22.20.5",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.3",
+    "@types/three": "0.180.0",
+    "eslint": "^9.36.0",
+    "eslint-config-next": "15.5.28",
+    "tailwindcss": "4.3.3",
+    "tsx": "^4.20.6",
+    "typescript": "5.9.3"
+  }
+}
