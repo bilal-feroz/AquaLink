@@ -73,15 +73,15 @@ export function Viewer({ active }: { active: boolean }) {
               </div>
             )}
             <div className="flex items-end justify-between gap-3">
-              <div className="pointer-events-auto">
+              <div className="pointer-events-auto shrink-0">
                 <ViewerControls />
               </div>
               {engineering && (
-                <div className="pointer-events-auto hidden lg:block">
+                <div className="pointer-events-auto hidden min-w-0 flex-1 justify-center lg:flex">
                   <FlowLegend />
                 </div>
               )}
-              <div className="pointer-events-auto">
+              <div className="pointer-events-auto shrink-0">
                 <FloorSelector />
               </div>
             </div>

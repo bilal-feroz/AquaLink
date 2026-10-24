@@ -362,7 +362,7 @@ export function FlowLegend() {
     { label: "Idle / offline", color: FLOW_VISUAL_HEX.standby, dash: false },
   ];
   return (
-    <ul aria-label="Flow legend" className="scene-chip flex items-center gap-4 rounded-xl px-4 py-2.5 text-[12.5px] text-white/90 shadow-lg">
+    <ul aria-label="Flow legend" className="scene-chip flex flex-wrap items-center justify-center gap-x-4 gap-y-1 rounded-xl px-4 py-2.5 text-[12.5px] text-white/90 shadow-lg">
       {items.map((i) => (
         <li key={i.label} className="flex items-center gap-2 whitespace-nowrap">
           <svg width="22" height="8" aria-hidden>
