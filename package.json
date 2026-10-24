@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "sim:check": "tsx scripts/sim-check.ts"
+    "sim:check": "tsx scripts/sim-check.ts",
+    "test:acceptance": "node scripts/acceptance.mjs",
+    "shoot": "node scripts/shoot.mjs"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",

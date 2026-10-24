@@ -34,8 +34,16 @@ export function Avatar({ techId, size = 22 }: { techId?: string; size?: number }
   );
 }
 
+// Expanded cards stay expanded when a status change moves them to another column.
+const expanded = new Set<string>();
+
 export function TaskCard({ task, defaultOpen = false, showIncident = false }: { task: MaintenanceTask; defaultOpen?: boolean; showIncident?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpenState] = useState(() => defaultOpen || expanded.has(task.id));
+  const setOpen = (v: boolean) => {
+    if (v) expanded.add(task.id);
+    else expanded.delete(task.id);
+    setOpenState(v);
+  };
   const [note, setNote] = useState("");
   const a = useAppStore.getState();
   const workOrder = useAppStore((s) => s.workOrders.find((w) => w.id === task.workOrderId));

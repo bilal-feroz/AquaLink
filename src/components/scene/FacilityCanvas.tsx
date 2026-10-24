@@ -254,7 +254,8 @@ export default function FacilityCanvas({ active }: { active: boolean }) {
         frameloop={active ? "always" : "never"}
         camera={{ fov: 42, near: 0.3, far: 400, position: [0, 7.4, 35] }}
         gl={{ antialias: true, powerPreference: "high-performance", alpha: false, stencil: false }}
-        onCreated={({ gl }) => {
+        onCreated={({ gl, scene, camera }) => {
+          (window as unknown as { aqualinkThree?: unknown }).aqualinkThree = { scene, camera };
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.05;
           // A context lost while the canvas is still mounted and not restored

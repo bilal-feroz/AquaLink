@@ -141,6 +141,10 @@ function Toasts() {
 
 export function AppShell() {
   const hydrated = useBoot();
+  useEffect(() => {
+    // Read-only hook for automated acceptance tests (scripts/acceptance.mjs).
+    (window as unknown as { aqualink?: unknown }).aqualink = { store: useAppStore };
+  }, []);
   useSimClock();
   useReducedMotionWatcher();
   useShortcuts();
