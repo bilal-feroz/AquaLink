@@ -1,0 +1,6 @@
+# Demo-film production files and local build output are not part of the site.
+brag-output
+.next-prod
+test-results
+playwright-report
+*.tsbuildinfo
