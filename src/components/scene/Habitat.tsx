@@ -21,8 +21,10 @@ import {
 } from "./geometry";
 import { sceneFx } from "./sceneFx";
 import {
+  floorCausticMaterial,
   glassMaterial,
   marineMaterial,
+  particleMaterial,
   underwaterMaterial,
   waterBackMaterial,
   waterFrontMaterial,
@@ -475,7 +477,9 @@ export function Habitat({ t, status, selected, hovered, dim, showMarine, emphasi
     const rimMetal = new THREE.MeshStandardMaterial({ color: "#c9ced6", roughness: 0.28, metalness: 0.9 });
     const lightRing = new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#9fe7ff"), emissiveIntensity: 2.2, toneMapped: true });
     const hood = new THREE.MeshStandardMaterial({ color: "#161a20", roughness: 0.55, metalness: 0.4 });
-    return { back, front, surface, glass, plinth, rimMetal, lightRing, hood };
+    const particles = particleMaterial("#cfefff", waterH);
+    const pool = floorCausticMaterial(water.shallow, glassR + 0.45, glassR + (t.radius > 4 ? 4.2 : 1.9));
+    return { back, front, surface, glass, plinth, rimMetal, lightRing, hood, particles, pool };
   }, [water.shallow, water.deep, glassR, waterH, t.radius]);
 
   useEffect(
@@ -486,6 +490,23 @@ export function Habitat({ t, status, selected, hovered, dim, showMarine, emphasi
   );
 
   const life = useMemo(() => buildLife(t, waterH), [t, waterH]);
+  const particleGeo = useMemo(() => {
+    const r = rng(t.code.charCodeAt(0) * 53);
+    const n = t.radius > 4 ? 420 : 110;
+    const pos = new Float32Array(n * 3);
+    const seed = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const a = r() * Math.PI * 2;
+      const d = Math.sqrt(r()) * (t.radius - 0.3);
+      pos.set([Math.cos(a) * d, r() * waterH, Math.sin(a) * d], i * 3);
+      seed[i] = r();
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    g.setAttribute("aSeed", new THREE.BufferAttribute(seed, 1));
+    return g;
+  }, [t.code, t.radius, waterH]);
+  useEffect(() => () => particleGeo.dispose(), [particleGeo]);
   const kinds = Object.keys(life) as GeoKind[];
 
   const frontRef = useRef<THREE.Mesh>(null);
@@ -499,6 +520,12 @@ export function Habitat({ t, status, selected, hovered, dim, showMarine, emphasi
     mats.back.uniforms.uTime.value = time * sceneFx.motion;
     mats.front.uniforms.uTime.value = time * sceneFx.motion;
     mats.surface.uniforms.uTime.value = time * sceneFx.motion;
+    mats.particles.uniforms.uTime.value = time * sceneFx.motion;
+    mats.particles.uniforms.uScale.value = state.size.height / 900;
+    mats.particles.uniforms.uOpacity.value = 1 - dimRef.current;
+    mats.pool.uniforms.uTime.value = time * sceneFx.motion;
+    // Floor caustics belong to the solid public building; they fade with the cut-away.
+    mats.pool.uniforms.uOpacity.value = (1 - sceneFx.ghost) * (1 - dimRef.current);
     mats.back.uniforms.uDim.value = dimRef.current * 0.8;
     mats.front.uniforms.uOpacity.value = 1 - dimRef.current * 0.3;
     const alertTarget = emphasis === "crit" ? 0.55 + 0.45 * sceneFx.pulse : emphasis === "warn" ? 0.4 : 0;
@@ -526,6 +553,10 @@ export function Habitat({ t, status, selected, hovered, dim, showMarine, emphasi
 
   return (
     <group position={t.position}>
+      {/* Caustic light pool on the floor around the exhibit */}
+      <mesh material={mats.pool} position={[0, 0.012, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1} raycast={() => null}>
+        <ringGeometry args={[glassR + 0.45, glassR + (t.radius > 4 ? 4.2 : 1.9), 72, 1]} />
+      </mesh>
       {/* Plinth and base light ring */}
       <mesh material={mats.plinth} position={[0, t.plinth / 2, 0]} raycast={() => null}>
         <cylinderGeometry args={[glassR + 0.35, glassR + 0.45, t.plinth, 48]} />
@@ -547,6 +578,7 @@ export function Habitat({ t, status, selected, hovered, dim, showMarine, emphasi
           <meshBasicMaterial color={water.deep} side={THREE.BackSide} />
         </mesh>
         <Scenery t={t} waterH={waterH} water={water.deep} dimRef={dimRef} />
+        <points geometry={particleGeo} material={mats.particles} frustumCulled={false} renderOrder={1} raycast={() => null} />
         {showMarine && kinds.map((k) => <MarineGroup key={k} kind={k} list={life[k]} water={water.deep} dimRef={dimRef} />)}
         <mesh ref={frontRef} material={mats.front} position={[0, waterH / 2, 0]} renderOrder={2} raycast={() => null}>
           <cylinderGeometry args={[glassR - 0.04, glassR - 0.04, waterH, 64, 1, true]} />

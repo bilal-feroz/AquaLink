@@ -68,7 +68,7 @@ export function Header() {
           <Clock3 aria-hidden className="size-4 text-muted" />
           <span className="tabular font-medium">{clock(sim.t)}</span>
           <span className="rounded bg-slate-100 px-1.5 py-px text-[10px] font-semibold tracking-wide text-muted uppercase">
-            {fastForwarding ? "Sim ▸▸" : playing ? "Sim" : "Paused"}
+            {!playing ? "Paused" : fastForwarding ? "Sim ▸▸" : "Sim"}
           </span>
         </div>
 

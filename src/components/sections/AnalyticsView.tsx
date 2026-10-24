@@ -86,7 +86,7 @@ function MiniChart({ title, subtitle, samples, pick, min, max, unit, digits = 0,
           {refs.map((r) => (
             <g key={r.label}>
               <line x1={pad.l} x2={W - pad.r} y1={y(r.value)} y2={y(r.value)} stroke="#8494aa" strokeWidth={1} strokeDasharray="3 3" />
-              <text x={W - pad.r - 2} y={y(r.value) - 3} textAnchor="end" fontSize={8.5} fill="#5a6b84">
+              <text x={pad.l + 4} y={r.value >= (min + max) / 2 ? y(r.value) + 10 : y(r.value) - 3} textAnchor="start" fontSize={8.5} fill="#5a6b84">
                 {r.label}
               </text>
             </g>

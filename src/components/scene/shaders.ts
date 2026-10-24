@@ -167,6 +167,72 @@ export function waterSurfaceMaterial(shallow: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Suspended particles drifting slowly upward inside the water column.
+
+export function particleMaterial(color: string, height: number) {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uHeight: { value: height }, uOpacity: { value: 1 }, uScale: { value: 1 } },
+    vertexShader: /* glsl */ `
+      attribute float aSeed;
+      uniform float uTime; uniform float uHeight; uniform float uScale;
+      varying float vFade;
+      void main() {
+        vec3 p = position;
+        p.y = mod(p.y + uTime * (0.05 + aSeed * 0.08), uHeight);
+        p.x += sin(uTime * 0.3 + aSeed * 40.0) * 0.08;
+        p.z += cos(uTime * 0.27 + aSeed * 31.0) * 0.08;
+        vFade = smoothstep(0.0, 0.6, p.y) * (1.0 - smoothstep(uHeight - 0.6, uHeight, p.y));
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_PointSize = (1.2 + aSeed * 2.2) * uScale * (60.0 / -mv.z);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform vec3 uColor; uniform float uOpacity;
+      varying float vFade;
+      void main() {
+        float d = length(gl_PointCoord - 0.5);
+        float a = smoothstep(0.5, 0.0, d) * 0.35 * vFade * uOpacity;
+        gl_FragColor = vec4(uColor * a, a);
+      }
+    `,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Caustic light pool cast on the floor around a habitat.
+
+export function floorCausticMaterial(color: string, inner: number, outer: number) {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uInner: { value: inner }, uOuter: { value: outer }, uOpacity: { value: 1 } },
+    vertexShader: /* glsl */ `
+      varying vec3 vWorld; varying vec3 vLocal;
+      void main() { vLocal = position; vec4 w = modelMatrix * vec4(position, 1.0); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uTime; uniform vec3 uColor; uniform float uInner; uniform float uOuter; uniform float uOpacity;
+      varying vec3 vWorld; varying vec3 vLocal;
+      ${CAUSTIC_GLSL}
+      void main() {
+        float r = length(vLocal.xy);
+        float fall = smoothstep(uOuter, uInner, r);
+        float c = causticPattern(vWorld.xz * 0.22, uTime * 0.35);
+        float a = (0.06 + c * 0.55) * fall * fall * uOpacity;
+        gl_FragColor = vec4(uColor * a, a);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Glass: Fresnel reflections of a procedural interior environment.
 
 export function glassMaterial(tint = "#9fd8ff") {

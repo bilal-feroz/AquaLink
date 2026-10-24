@@ -129,7 +129,7 @@ export function ScenarioDock() {
             {v}×
           </button>
         ))}
-        {ff && (
+        {ff && playing && (
           <span className="flex items-center gap-1 px-1.5 text-[11px] font-semibold text-amber-300" title="Fast-forwarding through the transient">
             <FastForward aria-hidden className="size-3.5" /> 20×
           </span>
@@ -358,6 +358,7 @@ export function FlowLegend() {
     { label: "Normal flow", color: FLOW_VISUAL_HEX.normal, dash: false },
     { label: "Backup / limited", color: FLOW_VISUAL_HEX.backup, dash: false },
     { label: "Interrupted", color: FLOW_VISUAL_HEX.interrupted, dash: true },
+    { label: "Upstream of fault", color: FLOW_VISUAL_HEX.upstream, dash: true },
     { label: "Idle / offline", color: FLOW_VISUAL_HEX.standby, dash: false },
   ];
   return (
