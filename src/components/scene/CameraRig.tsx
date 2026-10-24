@@ -146,6 +146,16 @@ export function CameraRig() {
     glide.current = { t: 0, dur, fromTarget, toTarget, from, to };
   };
 
+  // Keep the framed content above the incident timeline card. The lift is a share
+  // of the visible height, so it is resized whenever the framing distance changes.
+  const timeline = useAppStore((s) => s.mode === "operations" && s.showTimeline && activeIncidents(s.sim).length > 0 && !s.textView && !s.level);
+  const timelineOn = useRef(timeline);
+  timelineOn.current = timeline;
+  const applyFocalOffset = () => {
+    const visible = 2 * lastDist.current * Math.tan(((camera as THREE.PerspectiveCamera).fov * Math.PI) / 360);
+    void ref.current?.setFocalOffset(0, timelineOn.current ? visible * 0.07 : 0, 0, !reduced);
+  };
+
   const go = (p: CameraPreset, smooth = true, frame = false, minDur?: number) => {
     const c = ref.current;
     if (!c) return;
@@ -158,6 +168,7 @@ export function CameraRig() {
       pos = [p.target[0] + (pos[0] - p.target[0]) * k, p.target[1] + (pos[1] - p.target[1]) * k, p.target[2] + (pos[2] - p.target[2]) * k];
     }
     lastDist.current = Math.hypot(pos[0] - p.target[0], pos[1] - p.target[1], pos[2] - p.target[2]);
+    applyFocalOffset();
     if (smooth && !reduced) startGlide(pos, p.target, minDur);
     else {
       glide.current = null;
@@ -190,13 +201,8 @@ export function CameraRig() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incidentRoot]);
 
-  // Keep the framed content above the incident timeline card.
-  const timeline = useAppStore((s) => s.mode === "operations" && s.showTimeline && activeIncidents(s.sim).length > 0 && !s.textView && !s.level);
   useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const visible = 2 * lastDist.current * Math.tan(((camera as THREE.PerspectiveCamera).fov * Math.PI) / 360);
-    void c.setFocalOffset(0, timeline ? visible * 0.07 : 0, 0, !reduced);
+    applyFocalOffset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeline, mode, level, nonce]);
 
@@ -256,6 +262,7 @@ export function CameraRig() {
   }, [follow]);
 
   const tmp = useRef(new THREE.Vector3());
+  const pos = useRef(new THREE.Vector3());
   useFrame((_, dt) => {
     const c = ref.current;
     if (!c) return;
@@ -300,8 +307,9 @@ export function CameraRig() {
       return;
     }
 
-    // Keep the camera out of tank volumes.
-    const p = camera.position;
+    // Keep the camera out of tank volumes. Uses the controls' own position (without
+    // the focal offset), the same space setPosition writes, so the clamps cannot feed back.
+    const p = c.getPosition(pos.current, false);
     for (const t of TANKS) {
       const top = t.position[1] + t.plinth + t.height + 0.4;
       const bottom = t.position[1] - 0.2;
